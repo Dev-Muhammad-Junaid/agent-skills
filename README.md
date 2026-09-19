@@ -10,6 +10,7 @@ Skills are modular packages that extend your AI agent's capabilities with specia
 
 | Skill | Description | Install |
 |---|---|---|
+| `chrome-web-store-listing` | Prepare Chrome Web Store listings: screenshots, marquee, policy-safe descriptions, package zip, privacy justifications, and GA4 | `npx skills add Dev-Muhammad-Junaid/agent-skills@chrome-web-store-listing -g` |
 | `vps-project-setup` | Deploy any project to a Linux VPS — covers compatibility checks, PM2, tunneling, firewalls, CI/CD, and more | `npx skills add Dev-Muhammad-Junaid/agent-skills@vps-project-setup -g` |
 
 ## Installation
