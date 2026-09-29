@@ -1,0 +1,609 @@
+<!doctype html>
+<!-- SKILL NOTE: Distract's 30 s promo. A worked example of the deterministic seek(t) timeline; copy it and rewrite the scenes. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Distract promo</title>
+<!--
+  Distract promo video, 30 s. ?format=landscape (1920×1080, default) or ?format=vertical (1080×1920 for Reels / X / Shorts).
+  Every frame is a pure function of time: window.seek(t) poses the whole scene, and store/video/render.js
+  captures it frame by frame. Open it in a browser and it plays itself (append ?t=12 to freeze a moment).
+-->
+<style>
+  :root {
+    --canvas: #fffdf9; --surface: #ffffff; --sunken: #f3f0e9; --muted-bg: #f0f0eb; --ink: #242422; --muted: #63635f; --subtle: #72736d;
+    --border: #eae7df; --divider: #e5e5df; --accent: #2459e8; --primary: #2459e8;
+    --tint-blue: #e5edff; --tint-amber: #fff0d6; --tint-pink: #ffe7f1;
+    --tint-blue-ink: #12296b; --tint-amber-ink: #5c2d08; --tint-pink-ink: #6e1a3f;
+    --brand-blue: #2878ef; --brand-orange: #f58220; --brand-pink: #ed438b;
+    --inverse: #141a2e; --on-inverse: #f2f0eb;
+    --window: 0 0 0 1px rgba(36, 36, 34, 0.08), 0 44px 90px -30px rgba(70, 46, 20, 0.38);
+    --display: "Arial Rounded MT Bold", ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, sans-serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; transition: none !important; animation: none !important; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--canvas); }
+  body { font-family: var(--sans); color: var(--ink); -webkit-font-smoothing: antialiased; }
+  .stage { position: absolute; inset: 0; overflow: hidden; background: var(--canvas); }
+  .abs { position: absolute; }
+  .scene { position: absolute; inset: 0; }
+  .display { font-family: var(--display); font-weight: 800; letter-spacing: -0.045em; }
+  .accent { color: var(--accent); }
+  .pill { position: absolute; border-radius: 999px; }
+  .b { background: var(--brand-blue); } .o { background: var(--brand-orange); } .p { background: var(--brand-pink); }
+  .word { display: inline-block; will-change: transform; }
+  .caption { position: absolute; left: 96px; width: 480px; }
+  .caption h2 { margin: 0; font-size: 66px; line-height: 70px; }
+  .caption h2 .line { display: block; overflow: hidden; padding-bottom: 6px; }
+  .caption p { margin: 22px 0 0; font-size: 22px; line-height: 34px; color: var(--muted); }
+
+  /* intro / outro lockup */
+  .lockup { position: absolute; left: 50%; top: 50%; display: flex; align-items: center; gap: 30px; transform: translate(-50%, -50%); }
+  .lockup img { width: 150px; height: 150px; }
+  .wordmark { font-size: 150px; line-height: 1; display: flex; }
+  .wordmark span { display: inline-block; }
+  .tagline { position: absolute; left: 0; right: 0; text-align: center; font-size: 40px; line-height: 50px; }
+
+  /* problem chips */
+  .chip { position: absolute; padding: 18px 30px; border-radius: 999px; font-size: 34px; font-weight: 650; white-space: nowrap; box-shadow: 0 18px 40px -22px rgba(70, 46, 20, .45); }
+  .chip.pink { background: var(--tint-pink); color: var(--tint-pink-ink); }
+  .chip.amber { background: var(--tint-amber); color: var(--tint-amber-ink); }
+  .chip.blue { background: var(--tint-blue); color: var(--tint-blue-ink); }
+
+  /* browser window + site mock */
+  .window { position: absolute; left: 600px; top: 90px; width: 1260px; height: 900px; border-radius: 22px; background: var(--surface); box-shadow: var(--window); overflow: hidden; }
+  .chrome { height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 20px; background: var(--sunken); border-bottom: 1px solid var(--divider); }
+  .chrome .dots { display: flex; gap: 8px; } .chrome .dots i { width: 13px; height: 13px; border-radius: 50%; background: var(--border); display: block; }
+  .chrome .url { margin-left: 18px; flex: 1; height: 34px; border-radius: 999px; background: var(--surface); display: flex; align-items: center; padding: 0 18px; color: var(--muted); font-size: 16px; }
+  .chrome .ext { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+  .chrome .ext img { width: 26px; height: 26px; }
+  .yt-top { height: 64px; display: flex; align-items: center; padding: 0 26px; gap: 18px; }
+  .yt-top .logo { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 20px; letter-spacing: -0.5px; }
+  .yt-top .logo svg { width: 34px; height: 34px; }
+  .yt-top .search { margin-left: 120px; width: 440px; height: 40px; border-radius: 999px; border: 1px solid var(--border); background: var(--canvas); }
+  .yt-body { display: flex; }
+  .yt-side { width: 210px; padding: 8px 14px; flex: none; }
+  .yt-side .row { height: 40px; border-radius: 10px; display: flex; align-items: center; gap: 14px; padding: 0 12px; color: var(--ink); font-size: 16px; }
+  .yt-side .row i { width: 22px; height: 22px; border-radius: 6px; background: var(--muted-bg); display: block; }
+  .yt-side .row.on { background: var(--muted-bg); font-weight: 600; }
+  .yt-main { flex: 1; padding: 6px 24px 0 8px; min-width: 0; position: relative; }
+  .chips-row { display: flex; gap: 10px; height: 38px; margin-bottom: 18px; overflow: hidden; }
+  .chips-row span { padding: 0 16px; border-radius: 9px; background: var(--muted-bg); display: flex; align-items: center; font-size: 15px; font-weight: 600; white-space: nowrap; }
+  .chips-row span.on { background: var(--ink); color: var(--canvas); }
+  .sec { overflow: hidden; }
+  .grid { display: flex; gap: 16px; }
+  .card { flex: 1 1 0; min-width: 0; overflow: hidden; }
+  .thumb { height: 150px; border-radius: 14px; position: relative; }
+  .thumb .len { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,.72); color: #fff; font-size: 12px; font-weight: 600; padding: 2px 6px; border-radius: 5px; }
+  .meta { display: flex; gap: 10px; padding: 12px 2px 0; }
+  .meta .av { width: 34px; height: 34px; border-radius: 50%; flex: none; background: var(--muted-bg); }
+  .meta .ln { flex: 1; } .meta .ln i { display: block; height: 11px; border-radius: 6px; background: var(--muted-bg); margin-bottom: 8px; }
+  .meta .ln i:nth-child(2) { width: 62%; }
+  .ad-badge { position: absolute; left: 8px; top: 8px; background: #fde68a; color: #5c2d08; font-weight: 700; font-size: 12px; padding: 2px 7px; border-radius: 5px; }
+  .sec-title { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; margin: 4px 0 14px; }
+  .sec-title svg { width: 24px; height: 24px; }
+  .shorts { display: flex; gap: 14px; }
+  .short { width: 150px; height: 250px; border-radius: 14px; flex: none; position: relative; }
+  .short::after { content: ""; position: absolute; left: 10px; right: 30px; bottom: 14px; height: 10px; border-radius: 5px; background: rgba(255,255,255,.75); box-shadow: 0 -16px 0 rgba(255,255,255,.5); }
+  .page-hl { position: absolute; border: 3px solid var(--accent); border-radius: 18px; background: rgba(36, 89, 232, .08); box-shadow: 0 0 0 6px rgba(36, 89, 232, .15); pointer-events: none; }
+  .page-hl .tag { position: absolute; left: 12px; top: 12px; background: var(--accent); color: var(--canvas); font-weight: 650; font-size: 17px; padding: 5px 14px; border-radius: 999px; }
+
+  /* popups (the real extension UI, loaded from the popup test page) */
+  iframe.popup { position: absolute; border: 0; background: var(--canvas); border-radius: 22px; box-shadow: var(--window); overflow: hidden; }
+
+  /* cursor */
+  .cursor { position: absolute; left: 0; top: 0; width: 40px; height: 40px; z-index: 50; filter: drop-shadow(0 6px 10px rgba(0,0,0,.28)); }
+  .ripple { position: absolute; z-index: 49; border-radius: 50%; border: 3px solid var(--accent); pointer-events: none; }
+
+  /* privacy */
+  .center-text { position: absolute; left: 0; right: 0; text-align: center; }
+  .badge { position: absolute; padding: 16px 28px; border-radius: 999px; font-size: 28px; font-weight: 650; background: var(--surface); box-shadow: 0 0 0 1px var(--border), 0 20px 40px -24px rgba(70,46,20,.4); display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+  .badge svg { width: 28px; height: 28px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* platform names in the carousel caption */
+  .names { position: absolute; left: 0; right: 0; top: 86px; text-align: center; font-size: 60px; line-height: 70px; }
+  .names span { display: inline-block; margin: 0 14px; }
+  .names .sep { color: var(--border); margin: 0; }
+
+  /* ── vertical 9:16 (Reels, X, Shorts): key content stays inside the platforms' safe zone (≈230–1500 px) ── */
+  html[data-format="vertical"] .caption { left: 70px; width: 940px; }
+  html[data-format="vertical"] .caption h2 { font-size: 80px; line-height: 84px; }
+  html[data-format="vertical"] .caption p { font-size: 27px; line-height: 38px; margin-top: 18px; }
+  html[data-format="vertical"] .window { left: 40px; top: 520px; width: 1000px; height: 510px; }
+  html[data-format="vertical"] .badge { font-size: 38px; padding: 20px 36px; } html[data-format="vertical"] .badge svg { width: 36px; height: 36px; }
+  html[data-format="vertical"] .names { font-size: 58px; line-height: 70px; padding: 0 60px; }
+  html[data-format="vertical"] #prob-h { font-size: 96px !important; line-height: 102px !important; padding: 0 70px; }
+  html[data-format="vertical"] #priv-h { font-size: 120px !important; line-height: 122px !important; padding: 0 60px; }
+  html[data-format="vertical"] .lockup img { width: 132px; height: 132px; }
+  html[data-format="vertical"] .wordmark { font-size: 132px; }
+  html[data-format="vertical"] .tagline { padding: 0 60px; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <!-- 1 · intro -->
+  <div class="scene" id="s-intro">
+    <span class="pill b" id="ip1" style="height:44px;width:360px"></span>
+    <span class="pill o" id="ip2" style="height:44px;width:260px"></span>
+    <span class="pill p" id="ip3" style="height:44px;width:300px"></span>
+    <div class="lockup" id="lockup">
+      <img src="../../icons/128.png" id="intro-icon" alt="">
+      <div class="wordmark display" id="wordmark"></div>
+    </div>
+    <div class="tagline display" id="tagline" style="top:690px">scroll less. <span class="accent">see what you came for.</span></div>
+  </div>
+
+  <!-- 2 · the problem -->
+  <div class="scene" id="s-problem">
+    <div class="center-text display" id="prob-h" style="top:470px;font-size:84px;line-height:92px">your feed is full of <span class="accent">detours.</span></div>
+    <div id="chips"></div>
+  </div>
+
+  <!-- 3 · hero demo -->
+  <div class="scene" id="s-demo">
+    <div class="caption" id="cap-a" style="top:370px">
+      <h2 class="display"><span class="line"><span class="word">click</span> <span class="word">a</span> <span class="word">block.</span></span><span class="line accent"><span class="word">it’s</span> <span class="word">gone.</span></span></h2>
+      <p id="cap-a-p">Shorts, shelves, ads. Pick what goes.</p>
+    </div>
+    <div class="caption" id="cap-b" style="top:370px">
+      <h2 class="display"><span class="line"><span class="word">hover</span> <span class="word">a</span> <span class="word">block.</span></span><span class="line accent"><span class="word">see</span> <span class="word">it</span> <span class="word">live.</span></span></h2>
+      <p>Distract outlines that part of the real page.</p>
+    </div>
+    <div class="window" id="win">
+      <div class="chrome"><span class="dots"><i></i><i></i><i></i></span><span class="url">youtube.com</span><span class="ext" id="ext-btn"><img src="../../icons/128.png" alt=""></span></div>
+      <div class="yt-top"><span class="logo" id="yt-logo"></span><span class="search"></span></div>
+      <div class="yt-body">
+        <div class="yt-side">
+          <div class="row on"><i></i>Home</div><div class="row"><i></i>Shorts</div><div class="row"><i></i>Subscriptions</div>
+          <div class="row"><i></i>You</div><div class="row"><i></i>History</div><div class="row"><i></i>Playlists</div>
+          <div class="row"><i></i>Watch later</div><div class="row"><i></i>Liked videos</div>
+        </div>
+        <div class="yt-main" id="yt-main">
+          <div class="chips-row"><span class="on">All</span><span>Music</span><span>Podcasts</span><span>Gaming</span><span>Live</span><span>Design</span><span>News</span><span>Cooking</span></div>
+          <div class="sec" id="sec-grid1"><div class="grid" id="grid1"></div></div>
+          <div class="sec" id="sec-shorts"><div class="sec-title" id="shorts-title">Shorts</div><div class="shorts" id="shorts"></div></div>
+          <div class="sec" id="sec-topics"><div class="sec-title">Breaking news</div><div class="grid" id="topics"></div></div>
+          <div class="sec" id="sec-grid2" style="margin-bottom:24px"><div class="grid" id="grid2"></div></div>
+          <div class="sec" style="margin-bottom:24px"><div class="grid" id="grid3"></div></div>
+          <div class="sec"><div class="grid" id="grid4"></div></div>
+          <div class="page-hl" id="page-hl"><span class="tag">Home feed</span></div>
+        </div>
+      </div>
+    </div>
+    <iframe class="popup" id="pop-demo" data-q="p=youtube&v=home" data-zoom="1.2"></iframe>
+  </div>
+
+  <!-- 4 · every platform -->
+  <div class="scene" id="s-platforms">
+    <div class="names display" id="names"><span>youtube</span><span class="sep">·</span><span>x</span><span class="sep">·</span><span>facebook</span><span class="sep">·</span><span>instagram</span></div>
+    <iframe class="popup car" id="car-0" data-q="p=youtube&v=home" data-zoom="1.35"></iframe>
+    <iframe class="popup car" id="car-1" data-q="p=x&v=home" data-zoom="1.35"></iframe>
+    <iframe class="popup car" id="car-2" data-q="p=facebook&v=home" data-zoom="1.35"></iframe>
+    <iframe class="popup car" id="car-3" data-q="p=instagram&v=home" data-zoom="1.35"></iframe>
+  </div>
+
+  <!-- 5 · light / dark / pause -->
+  <div class="scene" id="s-theme">
+    <div class="caption" id="cap-t1" style="top:400px">
+      <h2 class="display"><span class="line"><span class="word">light</span> <span class="word">or</span> <span class="word">dark.</span></span><span class="line accent"><span class="word">it</span> <span class="word">follows</span> <span class="word">you.</span></span></h2>
+    </div>
+    <div class="caption" id="cap-t2" style="top:400px">
+      <h2 class="display"><span class="line"><span class="word">need</span> <span class="word">it</span> <span class="word">all?</span></span><span class="line accent"><span class="word">pause</span> <span class="word">anytime.</span></span></h2>
+    </div>
+    <iframe class="popup" id="theme-light" data-q="p=youtube&v=home&hide=yt-shorts,yt-shelves,yt-ads" data-zoom="1.45"></iframe>
+    <iframe class="popup" id="theme-dark" data-q="p=youtube&v=home&hide=yt-shorts,yt-shelves,yt-ads" data-zoom="1.45" data-theme="dark"></iframe>
+  </div>
+
+  <!-- 6 · privacy -->
+  <div class="scene" id="s-privacy">
+    <div class="center-text display" id="priv-h" style="top:360px;font-size:96px;line-height:100px">private <span class="accent">by design.</span></div>
+    <div class="badge" id="bd-0"><svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>no tracking</div>
+    <div class="badge" id="bd-1"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M3 3l18 18"/></svg>no account</div>
+    <div class="badge" id="bd-2"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/><path d="M3 3l18 18"/></svg>nothing leaves your browser</div>
+  </div>
+
+  <!-- 7 · outro -->
+  <div class="scene" id="s-outro">
+    <div class="lockup" id="lockup2"><img src="../../icons/128.png" alt=""><div class="wordmark display">distract<span class="accent">.</span></div></div>
+    <div class="tagline" id="out-1" style="top:700px;font-size:34px;color:var(--muted)">free on the Chrome Web Store</div>
+    <div class="tagline display" id="out-2" style="top:760px;font-size:30px;color:var(--ink)">youtube · x · facebook · instagram</div>
+    <span class="pill b" id="op1" style="height:28px"></span><span class="pill o" id="op2" style="height:28px"></span><span class="pill p" id="op3" style="height:28px"></span>
+  </div>
+
+  <!-- transitions + pointer (always on top) -->
+  <span class="pill b" id="w1" style="height:380px;z-index:40"></span>
+  <span class="pill o" id="w2" style="height:380px;z-index:40"></span>
+  <span class="pill p" id="w3" style="height:380px;z-index:40"></span>
+  <div class="ripple" id="ripple"></div>
+  <svg class="cursor" id="cursor" viewBox="0 0 24 24"><path d="M4 2.5v17.2l4.7-4.5 3.1 6.9 3.1-1.4-3.1-6.8h6.5L4 2.5Z" fill="#141a2e" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
+</div>
+
+<script src="../../src/brands.js"></script>
+<script>
+// ───────────────────────── timing helpers ─────────────────────────
+const DURATION = 30;
+const FORMAT = new URLSearchParams(location.search).get('format') === 'vertical' ? 'vertical' : 'landscape';
+const TALL = FORMAT === 'vertical';
+const W = TALL ? 1080 : 1920, H = TALL ? 1920 : 1080;
+document.documentElement.dataset.format = FORMAT;
+for (const el of [document.documentElement, document.body]) { el.style.width = W + 'px'; el.style.height = H + 'px'; }
+// Every position that differs between formats lives here.
+const L = TALL ? {
+  capTop: 230, capTTop: 230, taglineTop: 1150, probTop: 800, namesTop: 250, privTop: 640, out1: 1130, pillsY: 1290,
+  popLeft: (1080 - 440 * 1.5) / 2, popTop: 950, popZoom: 1.5, popOrigin: '50% 0%', hlH: 350,
+  carY: 1010, carSpace: 880, carZoom: 1.6, themeX: 540, themeY: 1090, themeZoom: 1.6,
+  badge: (i, b) => ({ x: 540 - b.offsetWidth / 2, y: 960 + i * 130 }),
+  chips: [[80, 330], [730, 300], [110, 1250], [540, 1330], [420, 510], [640, 620], [60, 640], [430, 1470]],
+} : {
+  capTop: 370, capTTop: 400, taglineTop: 690, probTop: 470, namesTop: 86, privTop: 360, out1: 700, pillsY: 880,
+  popLeft: 1312, popTop: 154, popZoom: 1.2, popOrigin: '92% 0%', hlH: 720,
+  carY: 620, carSpace: 820, carZoom: 1.35, themeX: 1270, themeY: 540, themeZoom: 1.45,
+  badge: (i, b) => ({ x: [520, 960, 1400][i] - b.offsetWidth / 2, y: 560 }),
+  chips: null, // landscape uses the positions in CHIPS
+};
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const E = {
+  out: (p) => 1 - Math.pow(1 - p, 3),
+  inOut: (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2),
+  expo: (p) => (p === 1 ? 1 : 1 - Math.pow(2, -10 * p)),
+  back: (p) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); },
+  in: (p) => p * p * p,
+};
+const $ = (id) => document.getElementById(id);
+const css = (el, o) => { for (const k in o) el.style[k] = o[k]; };
+// in/out envelope: rises over [a, a+ri], holds, falls over [b-fo, b]
+const env = (t, a, b, ri = 0.4, fo = 0.4) => Math.min(E.out(prog(t, a, a + ri)), 1 - E.in(prog(t, b - fo, b)));
+// display, not visibility: a visible child would otherwise show through a hidden scene
+const show = (el, on) => { el.style.display = on ? '' : 'none'; };
+
+// Scene windows (seconds)
+const S = { intro: [0, 3.3], problem: [3.1, 6.2], demo: [5.9, 13.6], platforms: [13.3, 19.6], theme: [19.4, 23.6], privacy: [23.4, 26.4], outro: [26.1, 30] };
+
+// ───────────────────────── build static bits ─────────────────────────
+for (const id of ['cap-a', 'cap-b']) $(id).style.top = L.capTop + 'px';
+for (const id of ['cap-t1', 'cap-t2']) $(id).style.top = L.capTTop + 'px';
+$('tagline').style.top = L.taglineTop + 'px';
+$('prob-h').style.top = L.probTop + 'px';
+$('names').style.top = L.namesTop + 'px';
+$('priv-h').style.top = L.privTop + 'px';
+$('out-1').style.top = L.out1 + 'px';
+$('out-2').style.top = L.out1 + 60 + 'px';
+$('pop-demo').dataset.zoom = L.popZoom;
+document.querySelectorAll('iframe.car').forEach((f) => { f.dataset.zoom = L.carZoom; });
+for (const id of ['theme-light', 'theme-dark']) $(id).dataset.zoom = L.themeZoom;
+$('wordmark').innerHTML = [...'distract'].map((c) => `<span>${c}</span>`).join('') + '<span class="accent" id="wm-dot">.</span>';
+$('yt-logo').innerHTML = DXBrand('youtube') + '<span>YouTube</span>';
+$('shorts-title').insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 24 24" fill="none" stroke="#ed438b" stroke-width="2" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg>');
+
+const GRADS = [
+  ['#ffd392', '#f58220'], ['#b9ccff', '#2459e8'], ['#ffc6de', '#ed438b'], ['#c9f0da', '#1f7a4d'],
+  ['#e5edff', '#6c8cff'], ['#fff0d6', '#e0a14a'], ['#f3e4ff', '#9b5de5'], ['#d8f3ff', '#2aa1d6'],
+];
+const g = (i) => `linear-gradient(135deg, ${GRADS[i % GRADS.length][0]}, ${GRADS[i % GRADS.length][1]})`;
+const card = (i, extra = '') => `<div class="card" ${extra}><div class="thumb" style="background:${g(i)}"><span class="len">${[12, 8, 21, 4, 15, 9][i % 6]}:0${i % 9}</span></div><div class="meta"><span class="av" style="background:${g(i + 3)}"></span><span class="ln"><i></i><i></i></span></div></div>`;
+$('grid1').innerHTML = `<div class="card" id="ad-card"><div class="thumb" style="background:linear-gradient(135deg,#fde68a,#f59e0b)"><span class="ad-badge">Ad</span></div><div class="meta"><span class="av"></span><span class="ln"><i></i><i></i></span></div></div>` + card(1) + card(2) + card(3);
+$('shorts').innerHTML = [0, 1, 2, 3, 4, 5].map((i) => `<div class="short" style="background:${g(i + 2)}"></div>`).join('');
+$('topics').innerHTML = card(4) + card(5) + card(6) + card(7);
+$('grid2').innerHTML = card(0) + card(3) + card(6) + card(1);
+$('grid3').innerHTML = card(5) + card(2) + card(7) + card(4);
+$('grid4').innerHTML = card(1) + card(6) + card(0) + card(3);
+
+const CHIPS = [
+  ['Shorts', 'pink', 180, 170, -6], ['Reels', 'pink', 1420, 150, 5], ['Trending', 'blue', 250, 780, 4], ['Suggested for you', 'pink', 1180, 800, -4],
+  ['Sponsored', 'amber', 760, 200, 3], ['Who to follow', 'blue', 1480, 470, -5], ['Up next', 'blue', 90, 480, 6], ['Ads', 'amber', 820, 860, -3],
+];
+$('chips').innerHTML = CHIPS.map((c, i) => `<div class="chip ${c[1]}" id="chip-${i}">${c[0]}</div>`).join('');
+
+// ───────────────────────── real popups in iframes ─────────────────────────
+const frames = [...document.querySelectorAll('iframe.popup')];
+const POP_W = 440;
+let darkCss = '';
+
+function loadFrames() {
+  return Promise.all(frames.map((f) => new Promise((resolve) => {
+    f.onload = () => {
+      const d = f.contentDocument;
+      const wait = () => {
+        if (!d.documentElement.dataset.ready) return setTimeout(wait, 30);
+        const z = +f.dataset.zoom;
+        const st = d.createElement('style');
+        st.textContent = '*{transition:none!important;animation:none!important} .tip{display:none!important}' + (f.dataset.theme === 'dark' ? darkCss : '');
+        d.head.appendChild(st);
+        d.documentElement.style.zoom = z;
+        f.style.width = POP_W * z + 'px';
+        f.style.height = d.body.scrollHeight * z + 'px';
+        f._state = { hidden: '', hover: '', paused: false };
+        resolve();
+      };
+      wait();
+    };
+    f.src = `../../tools/popup-test.html?bare=1&${f.dataset.q}`;
+  })));
+}
+
+// Pose one popup: which zones are hidden, which block is hovered, paused or not.
+function pose(f, { hidden = null, hover = '', paused = null } = {}) {
+  const w = f.contentWindow;
+  const key = hidden ? hidden.join(',') : null;
+  let dirty = false;
+  if (key !== null && key !== f._state.hidden) {
+    w.eval(`state.hidden = ${JSON.stringify(Object.fromEntries(hidden.map((z) => [z, true])))}`);
+    f._state.hidden = key; dirty = true;
+  }
+  if (paused !== null && paused !== f._state.paused) {
+    w.eval(`state.paused = ${paused ? '{[state.platform.id]: true}' : '{}'}`);
+    f._state.paused = paused; dirty = true;
+  }
+  if (dirty) { w.eval('render()'); f._state.hover = null; }
+  if (hover !== f._state.hover) {
+    f.contentDocument.querySelectorAll('.force-hover').forEach((e) => e.classList.remove('force-hover'));
+    if (hover) { const b = blockEl(f, hover); if (b) b.classList.add('force-hover'); }
+    f._state.hover = hover;
+  }
+}
+
+function blockEl(f, sel) {
+  const d = f.contentDocument;
+  return sel === '#power' ? d.getElementById('power') : d.querySelector(`.z[data-zone="${sel}"]`) || d.querySelector(sel);
+}
+
+// Centre of a block inside a popup, in stage coordinates (handles zoom and transforms).
+function blockCenter(f, sel) {
+  const el = blockEl(f, sel);
+  const fr = f.getBoundingClientRect();
+  const root = f.contentDocument.documentElement.getBoundingClientRect();
+  const k = fr.width / root.width;
+  const r = el.getBoundingClientRect();
+  return { x: fr.left + (r.left + r.width / 2) * k, y: fr.top + (r.top + r.height / 2) * k };
+}
+
+// ───────────────────────── pointer ─────────────────────────
+function cursorAt(x, y, on, press = 0) {
+  css($('cursor'), { transform: `translate(${x - 6}px, ${y - 4}px) scale(${1 - press * 0.14})`, opacity: on ? 1 : 0 });
+}
+function ripple(x, y, p) {
+  const r = lerp(8, 56, E.out(p));
+  css($('ripple'), { left: x - r + 'px', top: y - r + 'px', width: 2 * r + 'px', height: 2 * r + 'px', opacity: p > 0 && p < 1 ? 1 - p : 0 });
+}
+
+// ───────────────────────── the timeline ─────────────────────────
+function seek(t) {
+  const inS = (k) => t >= S[k][0] && t <= S[k][1];
+  for (const k in S) show($('s-' + k), inS(k));
+  $('stage').style.opacity = 1;
+  cursorAt(0, 0, false); ripple(0, 0, 0);
+
+  // pill wipe transitions: problem→demo and theme→privacy
+  wipe(t, 5.55, 6.55);
+
+  if (inS('intro')) intro(t);
+  if (inS('problem')) problem(t);
+  if (inS('demo')) demo(t);
+  if (inS('platforms')) platforms(t);
+  if (inS('theme')) theme(t);
+  if (inS('privacy')) privacy(t);
+  if (inS('outro')) outro(t);
+}
+
+function wipe(t, a, b) {
+  const ids = ['w1', 'w2', 'w3'];
+  ids.forEach((id, i) => {
+    const p = E.inOut(prog(t, a + i * 0.08, b + i * 0.08));
+    const x = lerp(-2600, W + 200, p);
+    const band = H / 3;
+    css($(id), { left: x + 'px', top: (TALL ? i * band - 60 : 90 + i * 330) + 'px', height: (TALL ? band + 140 : 380) + 'px', width: '2500px', visibility: p > 0 && p < 1 ? 'visible' : 'hidden', transform: 'rotate(-8deg)' });
+  });
+}
+
+function intro(t) {
+  // pills fly in and fold into the icon
+  const ps = [['ip1', 360, 0], ['ip2', 260, 0.08], ['ip3', 300, 0.16]];
+  ps.forEach(([id, w, d], i) => {
+    const pin = E.expo(prog(t, 0.05 + d, 0.75 + d));
+    const fold = E.inOut(prog(t, 0.85, 1.35));
+    const x = lerp(lerp(-600, W / 2 - 180 + i * 40, pin), W / 2 - 60, fold);
+    const y = lerp(H / 2 - 70 + i * 70, H / 2 - 20 + (i - 1) * 26, fold);
+    const width = lerp(w, 90 + (i === 1 ? -20 : 0), fold);
+    css($(id), { left: x + 'px', top: y + 'px', width: width + 'px', height: lerp(44, 16, fold) + 'px', opacity: 1 - prog(t, 1.25, 1.4) });
+  });
+  const pop = E.back(prog(t, 1.2, 1.7));
+  const slide = E.inOut(prog(t, 1.55, 2.1));
+  const out = E.in(prog(t, 2.95, 3.3));
+  css($('lockup'), { transform: `translate(calc(-50% + ${lerp(330, 0, slide)}px), -50%) scale(${1 - out * 0.08})`, opacity: 1 - out });
+  css($('intro-icon'), { transform: `scale(${pop})`, opacity: prog(t, 1.2, 1.3) });
+  [...$('wordmark').children].forEach((c, i) => {
+    const p = E.out(prog(t, 1.7 + i * 0.045, 2.15 + i * 0.045));
+    const isDot = c.id === 'wm-dot';
+    const dp = E.back(prog(t, 2.2, 2.6));
+    css(c, isDot ? { transform: `translateY(${lerp(-160, 0, dp)}px)`, opacity: prog(t, 2.2, 2.3) }
+                 : { transform: `translateY(${lerp(60, 0, p)}px)`, opacity: p });
+  });
+  const tg = E.out(prog(t, 2.35, 2.85));
+  css($('tagline'), { transform: `translateY(${lerp(24, 0, tg)}px)`, opacity: tg * (1 - out) });
+}
+
+function problem(t) {
+  const h = env(t, 3.3, 6.0, 0.5, 0.35);
+  css($('prob-h'), { opacity: h, transform: `translateY(${lerp(30, 0, E.out(prog(t, 3.3, 3.8)))}px)` });
+  CHIPS.forEach((c, i) => {
+    const p = E.back(prog(t, 3.55 + i * 0.12, 3.95 + i * 0.12));
+    const drift = Math.sin((t - 3.5) * 1.3 + i) * 10;
+    const sweep = E.in(prog(t, 5.5 + (i % 3) * 0.05, 5.95));
+    const el = $('chip-' + i);
+    const [cx, cy] = L.chips ? L.chips[i] : [c[2], c[3]];
+    css(el, {
+      left: Math.min(cx, W - el.offsetWidth - 30) + 'px', top: cy + drift + 'px', opacity: Math.min(prog(t, 3.55 + i * 0.12, 3.7 + i * 0.12), 1 - sweep),
+      transform: `translateX(${sweep * 900}px) rotate(${c[4] + drift * 0.2}deg) scale(${p})`,
+    });
+  });
+}
+
+// Demo beats: [time of click, popup zone]
+const CLICKS = [[7.9, 'yt-shorts'], [9.2, 'yt-shelves'], [10.4, 'yt-ads']];
+const collapse = (t, at) => E.inOut(prog(t, at + 0.05, at + 0.6));
+
+function demo(t) {
+  const f = $('pop-demo');
+  // window rises, popup drops from the toolbar icon
+  const winIn = E.out(prog(t, 6.0, 6.7));
+  const exit = E.in(prog(t, 13.1, 13.6));
+  css($('win'), { transform: `translateY(${lerp(140, 0, winIn) + exit * -60}px) scale(${1 - exit * 0.04})`, opacity: Math.min(winIn * 1.4, 1 - exit) });
+  const popIn = E.back(prog(t, 6.75, 7.2));
+  css(f, { left: L.popLeft + 'px', top: L.popTop + 'px', transform: `translateY(${exit * -60}px) scale(${lerp(0.6, 1, popIn) * (1 - exit * 0.04)})`, transformOrigin: L.popOrigin, opacity: Math.min(prog(t, 6.75, 6.9), 1 - exit), zIndex: 5 });
+
+  // which zones are hidden so far, and the page collapsing to match
+  const hidden = CLICKS.filter(([at]) => t >= at).map(([, z]) => z);
+  const hoverFeed = t > 11.2 && t < 13.0;
+  pose(f, { hidden, hover: hoverFeed ? 'yt-feed' : '' });
+  const sh = collapse(t, CLICKS[0][0]), tp = collapse(t, CLICKS[1][0]), ad = collapse(t, CLICKS[2][0]);
+  css($('sec-shorts'), { height: lerp(300, 0, sh) + 'px', opacity: 1 - sh, marginBottom: lerp(24, 0, sh) + 'px' });
+  css($('sec-topics'), { height: lerp(250, 0, tp) + 'px', opacity: 1 - tp, marginBottom: lerp(24, 0, tp) + 'px' });
+  css($('sec-grid1'), { marginBottom: '24px' });
+  css($('ad-card'), { flexGrow: 1 - ad, flexBasis: '0px', opacity: 1 - ad, marginRight: lerp(0, -16, ad) + 'px' });
+
+  // on-page highlight when hovering "Home feed"
+  const hl = env(t, 11.3, 13.0, 0.3, 0.3);
+  css($('page-hl'), { left: '0px', top: '52px', width: '100%', height: L.hlH + 'px', opacity: hl, transform: `scale(${lerp(0.985, 1, hl)})` });
+
+  // captions
+  captionWords($('cap-a'), t, 6.4, 10.95);
+  captionWords($('cap-b'), t, 11.15, 13.3);
+
+  // the pointer: path through each click, then onto Home feed
+  if (t > 7.2 && t < 13.1) {
+    const stops = [
+      [7.2, (() => { const c = blockCenter(f, 'yt-shorts'); return { x: c.x - 380, y: c.y + 320 }; })()],
+      [7.85, blockCenter(f, 'yt-shorts')], [8.4, blockCenter(f, 'yt-shorts')],
+      [9.15, blockCenter(f, 'yt-shelves')], [9.7, blockCenter(f, 'yt-shelves')],
+      [10.35, blockCenter(f, 'yt-ads')], [10.8, blockCenter(f, 'yt-ads')],
+      [11.3, (() => { const c = blockCenter(f, 'yt-feed'); return { x: c.x - 40, y: c.y - 70 }; })()], [13.1, (() => { const c = blockCenter(f, 'yt-feed'); return { x: c.x - 30, y: c.y - 64 }; })()],
+    ];
+    const pos = along(stops, t);
+    const press = Math.max(...CLICKS.map(([at]) => 1 - Math.abs(t - at) / 0.09).map((v) => clamp(v)));
+    cursorAt(pos.x, pos.y, true, press);
+    for (const [at] of CLICKS) if (t >= at && t < at + 0.5) ripple(pos.x, pos.y, prog(t, at, at + 0.5));
+  }
+}
+
+// ease between timed waypoints
+function along(stops, t) {
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [a, pa] = stops[i], [b, pb] = stops[i + 1];
+    if (t <= b) { const p = E.inOut(prog(t, a, b)); return { x: lerp(pa.x, pb.x, p), y: lerp(pa.y, pb.y, p) }; }
+  }
+  return stops[stops.length - 1][1];
+}
+
+// word-by-word rise in, soft fall out
+function captionWords(cap, t, a, b) {
+  const words = cap.querySelectorAll('.word');
+  const out = E.in(prog(t, b - 0.3, b));
+  words.forEach((w, i) => {
+    const p = E.out(prog(t, a + i * 0.07, a + 0.45 + i * 0.07));
+    css(w, { transform: `translateY(${lerp(80, 0, p) - out * 30}px)`, opacity: p * (1 - out) });
+  });
+  const para = cap.querySelector('p');
+  if (para) { const p = E.out(prog(t, a + 0.5, a + 0.9)); css(para, { opacity: p * (1 - out), transform: `translateY(${lerp(16, 0, p)}px)` }); }
+  cap.style.visibility = t > a - 0.05 && t < b + 0.05 ? 'visible' : 'hidden';
+}
+
+// Carousel: each card passes the centre, one block gets hidden as it does.
+const CAR = [['car-0', 'yt-shelves'], ['car-1', 'x-trending'], ['car-2', 'fb-reels'], ['car-3', 'ig-rail']];
+const CAR_T = [14.3, 15.75, 17.2, 18.65]; // moments each card is centred
+function platforms(t) {
+  const enter = E.out(prog(t, 13.4, 14.0));
+  const leave = E.in(prog(t, 19.2, 19.6));
+  // continuous focus index, easing between stops
+  let idx = 0;
+  for (let i = 0; i < CAR_T.length - 1; i++) if (t > CAR_T[i] + 0.55) idx = i + E.inOut(prog(t, CAR_T[i] + 0.55, CAR_T[i + 1]));
+  CAR.forEach(([id, zone], i) => {
+    const f = $(id);
+    const d = i - idx;
+    const s = lerp(1.08, 0.78, clamp(Math.abs(d)));
+    const w = f.offsetWidth, h = f.offsetHeight;
+    const cx = W / 2 + d * L.carSpace + (1 - enter) * W * 0.47 - leave * W * 0.31;
+    css(f, { left: cx - w / 2 + "px", top: L.carY - h / 2 + 'px', transform: `scale(${s}) rotate(${d * 2}deg)`, opacity: clamp(1.15 - Math.abs(d) * 0.62) * enter * (1 - leave), zIndex: 10 - Math.round(Math.abs(d) * 2) });
+    const at = CAR_T[i] + 0.3;
+    pose(f, { hidden: t >= at ? [zone] : [] });
+    if (t >= at && t < at + 0.5 && Math.abs(d) < 0.3) { const c = blockCenter(f, zone); ripple(c.x, c.y, prog(t, at, at + 0.5)); }
+  });
+  // highlight the platform name in focus
+  const spans = [...$('names').querySelectorAll('span:not(.sep)')];
+  spans.forEach((s, i) => { const on = clamp(1 - Math.abs(i - idx) * 1.6); s.style.color = on > 0.5 ? 'var(--accent)' : 'var(--ink)'; s.style.opacity = 0.35 + on * 0.65; });
+  css($('names'), { opacity: enter * (1 - leave), transform: `translateY(${lerp(-30, 0, enter)}px)` });
+}
+
+function theme(t) {
+  const Lt = $('theme-light'), D = $('theme-dark');
+  const enter = E.out(prog(t, 19.5, 20.1));
+  const leave = E.in(prog(t, 23.2, 23.6));
+  for (const f of [Lt, D]) css(f, { left: L.themeX - f.offsetWidth / 2 + 'px', top: L.themeY - f.offsetHeight / 2 + 'px', transform: `translateY(${lerp(80, 0, enter) - leave * 40}px) scale(${1 - leave * 0.05})`, opacity: enter * (1 - leave) });
+  // circular reveal of the dark popup
+  const r = E.inOut(prog(t, 20.35, 21.15)) * 1100;
+  D.style.clipPath = `circle(${r}px at 50% 50%)`;
+  // the stage follows into dark
+  const dk = E.inOut(prog(t, 20.35, 21.15)) * (1 - E.inOut(prog(t, 23.1, 23.6)));
+  $('s-theme').style.background = `rgba(25, 26, 29, ${dk})`;
+  $('cap-t1').style.color = $('cap-t2').style.color = dk > 0.5 ? '#f2f0eb' : 'var(--ink)';
+  captionWords($('cap-t1'), t, 19.7, 21.7);
+  captionWords($('cap-t2'), t, 21.9, 23.4);
+  // click the power switch
+  const at = 22.5;
+  pose(D, { paused: t >= at });
+  if (t > 21.7 && t < 23.2) {
+    const sw = blockCenter(D, '#power');
+    const pos = along([[21.7, { x: Math.min(sw.x + 260, W - 80), y: Math.min(sw.y + 420, H - 120) }], [22.45, sw], [23.2, { x: sw.x + 30, y: sw.y + 60 }]], t);
+    cursorAt(pos.x, pos.y, true, clamp(1 - Math.abs(t - at) / 0.09));
+    if (t >= at && t < at + 0.5) ripple(pos.x, pos.y, prog(t, at, at + 0.5));
+  }
+}
+
+function privacy(t) {
+  const h = env(t, 23.55, 26.3, 0.5, 0.35);
+  css($('priv-h'), { opacity: h, transform: `translateY(${lerp(40, 0, E.out(prog(t, 23.55, 24.1)))}px)` });
+  [0, 1, 2].forEach((i) => {
+    const b = $('bd-' + i);
+    const p = E.back(prog(t, 24.1 + i * 0.16, 24.55 + i * 0.16));
+    const out = E.in(prog(t, 25.95, 26.3));
+    const at = L.badge(i, b);
+    css(b, { left: at.x + 'px', top: at.y + 'px', transform: `translateY(${lerp(40, 0, p)}px) scale(${lerp(0.8, 1, p)})`, opacity: Math.min(prog(t, 24.1 + i * 0.16, 24.25 + i * 0.16), 1 - out) });
+  });
+}
+
+function outro(t) {
+  const p = E.back(prog(t, 26.3, 26.9));
+  css($('lockup2'), { transform: `translate(-50%, -50%) scale(${lerp(0.85, 1, p)})`, opacity: prog(t, 26.3, 26.5) });
+  const a = E.out(prog(t, 26.8, 27.3)), b = E.out(prog(t, 27.05, 27.55));
+  css($('out-1'), { opacity: a, transform: `translateY(${lerp(20, 0, a)}px)` });
+  css($('out-2'), { opacity: b, transform: `translateY(${lerp(20, 0, b)}px)` });
+  [['op1', 220, 0], ['op2', 120, 0.08], ['op3', 170, 0.16]].forEach(([id, w, d], i) => {
+    const q = E.expo(prog(t, 27.2 + d, 27.9 + d));
+    css($(id), { width: w + 'px', left: lerp(-300, W / 2 - 180 + [0, 240, 380][i], q) + 'px', top: L.pillsY + 'px' });
+  });
+  const fade = prog(t, 29.4, 30);
+  $('stage').style.opacity = 1 - fade * 0.999;
+}
+
+// ───────────────────────── boot ─────────────────────────
+window.DURATION = DURATION;
+window.ready = (async () => {
+  // The dark popup reuses the extension's own dark tokens.
+  const cssText = await (await fetch('../../src/popup.css')).text();
+  const m = cssText.match(/@media \(prefers-color-scheme: dark\) \{([\s\S]*?\n)\}/);
+  darkCss = m ? m[1] : '';
+  await document.fonts.ready;
+  await loadFrames();
+  window.seek = seek;
+  seek(0);
+  document.documentElement.dataset.ready = '1';
+  // Preview: play in real time, or freeze with ?t=
+  const q = new URLSearchParams(location.search);
+  if (q.has('t')) seek(+q.get('t'));
+  else if (!q.has('render')) { const t0 = performance.now(); const loop = () => { seek(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; loop(); }
+})();
+</script>
+</body>
+</html>

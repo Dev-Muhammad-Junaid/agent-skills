@@ -1,0 +1,27 @@
+<!doctype html>
+<!-- SKILL NOTE: swap the wordmark and one-line promise. Keep brand-first, little text. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Distract small promo tile</title>
+<link rel="stylesheet" href="store.css">
+<style>
+  .stage { width: 440px; height: 280px; }
+  .inner { position: absolute; left: 36px; top: -36px; bottom: 0; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  .mark { font-size: 46px; line-height: 1; }
+  .lead { font-size: 16px; line-height: 24px; max-width: 250px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <span class="pill o" style="right:-24px;bottom:40px;width:120px;height:18px"></span>
+  <span class="pill p" style="right:-24px;bottom:68px;width:64px;height:18px"></span>
+  <span class="pill b" style="right:-24px;bottom:96px;width:160px;height:18px"></span>
+  <div class="inner">
+    <span class="mark"><img src="../../icons/128.png" alt=""><span>distract<span class="dot">.</span></span></span>
+    <p class="lead">Click the parts of your feed you don’t want. They’re gone.</p>
+  </div>
+</div>
+<script>document.documentElement.dataset.ready = '1';</script>
+</body>
+</html>

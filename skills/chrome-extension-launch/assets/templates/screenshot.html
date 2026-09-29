@@ -1,0 +1,62 @@
+<!doctype html>
+<!-- SKILL NOTE: edit SHOTS (headline pair, lead, panel tone, popup query) per screenshot. The popup iframe loads tools/popup-test.html (a stubbed chrome.* page) with ?bare=1&focus=<zone>. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Distract screenshot</title>
+<link rel="stylesheet" href="store.css">
+<style>
+  .stage { width: 1280px; height: 800px; }
+  .copy { position: absolute; left: 72px; top: 0; bottom: 0; width: 430px; display: flex; flex-direction: column; justify-content: center; gap: 22px; }
+  .copy .mark { font-size: 26px; position: absolute; top: 64px; }
+  .headline { font-size: 50px; line-height: 54px; }
+  .lead { font-size: 19px; line-height: 30px; max-width: 400px; }
+  .panel { right: 40px; top: 40px; bottom: 40px; width: 724px; }
+  .popup { width: 440px; border-radius: 20px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="copy">
+    <span class="mark"><img src="../../icons/128.png" alt=""><span>distract<span class="dot">.</span></span></span>
+    <h1 class="headline" id="h"></h1>
+    <p class="lead" id="lead"></p>
+  </div>
+  <div class="panel" id="panel">
+    <span class="pill o" style="left:40px;top:36px;width:96px;height:22px"></span>
+    <span class="pill p" style="left:150px;top:36px;width:46px;height:22px"></span>
+    <span class="pill b" style="right:40px;bottom:36px;width:132px;height:22px"></span>
+    <iframe class="popup" id="popup" title="Distract popup"></iframe>
+  </div>
+</div>
+<script>
+// One template, five screenshots: ?n=1…5
+const SHOTS = {
+  1: { tone: 'blue', h: ['hide the shorts.', 'keep the videos.'], lead: 'Distract draws the page you’re on as blocks. Click one and that part of YouTube is gone.', q: 'p=youtube&v=home&hide=yt-shorts,yt-shelves,yt-ads' },
+  2: { tone: 'amber', h: ['one click.', 'it’s gone.'], lead: 'Trending, Who to follow, Grok, promoted posts. Hide any part of X, and bring it back just as fast.', q: 'p=x&v=home&hide=x-trending,x-promoted,x-grok&focus=x-news' },
+  3: { tone: 'pink', h: ['reels out.', 'friends in.'], lead: 'Hide Reels, Stories, suggestions and sponsored panels on Facebook. The feed you chose stays.', q: 'p=facebook&v=home&hide=fb-reels,fb-sponsored,fb-suggested&focus=fb-stories' },
+  4: { tone: 'blue', h: ['fewer rabbit holes.', 'same instagram.'], lead: 'Hide Reels, ads and suggested posts. Hover a block and Distract points to that part of the page.', q: 'p=instagram&v=home&hide=ig-reels,ig-ads&focus=ig-suggested' },
+  5: { tone: 'amber', h: ['just the video.', 'nothing next.'], lead: 'Hide Up next, comments and end cards. The player moves to the centre so you can watch in peace.', q: 'p=youtube&v=watch&hide=yt-related,yt-comments,yt-endscreen' },
+};
+const s = SHOTS[new URLSearchParams(location.search).get('n') || 1];
+document.getElementById('h').innerHTML = `${s.h[0]}<span class="accent">${s.h[1]}</span>`;
+document.getElementById('lead').textContent = s.lead;
+document.getElementById('panel').classList.add(s.tone);
+const f = document.getElementById('popup');
+f.src = `../../tools/popup-test.html?bare=1&${s.q}`;
+f.onload = () => {
+  const d = f.contentDocument;
+  // zoom re-lays the popup out at the larger size, so text stays sharp (a transform would stretch pixels).
+  const fit = () => {
+    const Z = 1.46;
+    d.documentElement.style.zoom = Z;
+    f.style.width = 440 * Z + 'px';
+    f.style.height = d.body.scrollHeight * Z + 'px';
+    document.documentElement.dataset.ready = '1';
+  };
+  const wait = () => (d.documentElement.dataset.ready ? fit() : setTimeout(wait, 30));
+  wait();
+};
+</script>
+</body>
+</html>

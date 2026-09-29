@@ -1,0 +1,42 @@
+<!doctype html>
+<!-- SKILL NOTE: headline pair + lead + the real popup in a tinted panel. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Distract marquee tile</title>
+<link rel="stylesheet" href="store.css">
+<style>
+  .stage { width: 1400px; height: 560px; }
+  .copy { position: absolute; left: 88px; top: 0; bottom: 0; width: 660px; display: flex; flex-direction: column; justify-content: center; gap: 22px; }
+  .mark { font-size: 30px; }
+  .headline { font-size: 60px; line-height: 64px; }
+  .lead { font-size: 20px; line-height: 32px; max-width: 560px; }
+  .panel { right: 48px; top: 40px; bottom: 40px; width: 600px; }
+  .popup { width: 440px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="copy">
+    <span class="mark"><img src="../../icons/128.png" alt=""><span>distract<span class="dot">.</span></span></span>
+    <h1 class="headline">scroll less.<span class="accent">see what you came for.</span></h1>
+    <p class="lead">Hide Shorts, Reels, trends and suggestions with one click.</p>
+  </div>
+  <div class="panel blue">
+    <span class="pill o" style="left:-20px;bottom:40px;width:90px;height:20px"></span>
+    <span class="pill p" style="right:-20px;top:40px;width:70px;height:20px"></span>
+    <iframe class="popup" id="popup" title="Distract popup" src="../../tools/popup-test.html?bare=1&p=youtube&v=home&hide=yt-shorts,yt-shelves,yt-ads"></iframe>
+  </div>
+</div>
+<script>
+const f = document.getElementById('popup');
+f.onload = () => {
+  const d = f.contentDocument;
+  const wait = () => (d.documentElement.dataset.ready
+    ? (d.documentElement.style.zoom = 1.02, f.style.width = 440 * 1.02 + 'px', f.style.height = d.body.scrollHeight * 1.02 + 'px', document.documentElement.dataset.ready = '1')
+    : setTimeout(wait, 30));
+  wait();
+};
+</script>
+</body>
+</html>
