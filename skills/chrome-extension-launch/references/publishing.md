@@ -41,6 +41,26 @@ Order and fields:
 4. **Distribution**: Public, all regions, free (unless the user says otherwise).
 5. **Stop.** Summarise what's filled and what's missing, then wait for an explicit "submit" before clicking **Submit for review**.
 
+## Google Analytics (two different things)
+
+1. **Store listing GA4** (dashboard → Store listing → Additional metrics → "Opt in to Google Analytics"). Chrome provisions the property, and every publisher member sees store-level (not user-level) metrics. Opt in on new items unless the user says no. Docs: https://developer.chrome.com/docs/webstore/metrics
+2. **In-extension GA** (gtag inside the extension). Only if the product actually collects analytics, disclosed on the Privacy tab and in the description. Never add it without asking. Docs: https://developer.chrome.com/docs/extensions/how-to/integrate/google-analytics-4
+
+## Dashboard gotchas
+
+- The live listing stays on the previous version while a newer draft sits on Package.
+- "Why can't I submit?" usually means a missing required field: a screenshot, the icon, a privacy answer or the description.
+- If a dashboard file picker fails, open the asset folder in Finder and let the user drop the files in.
+
+## Reporting after an upload
+
+Tell the user, in this order:
+1. The draft vs live version.
+2. The zip path (and send the file if they can't open the folder).
+3. The screenshot, tile and marquee files (sent, grouped by dashboard slot).
+4. What they still need to paste, drop or do (sign-in, the $5 fee, the video URL).
+5. That review was **not** submitted.
+
 ## After submission
 
 - Review usually takes from a few hours to a few days. The Chrome Web Store link `https://chromewebstore.google.com/detail/<item-id>` resolves once the item is published.

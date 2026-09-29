@@ -34,6 +34,24 @@ After rendering:
 2. **Look at every image** (Read the PNGs). Check for clipped labels ("End ca…"), headline wrapping, tooltips covering labels, decoration overlapping the popup.
 3. Don't commit re-rendered images that didn't change on purpose (anti-aliasing noise). `git checkout -- store/assets/...`.
 
+## Repos with their own renderer (Next.js style, e.g. Switchit)
+
+Keep the repo's flow instead of adding templates:
+
+```
+npm run package       # versioned zip, manifest at zip root
+npm run store-shots   # listing screenshots + promo tiles (a /store-shots route with fixture data)
+npm run store-promo   # marquee only
+```
+
+- Layout: listing copy in `qa/store-listing.txt`, current art in `qa/store/`, a versioned archive in `qa/v{version}/`, and the zip at `qa/v{version}/{slug}-{version}.zip` (gitignored).
+- Strip listing-only pages (such as `/store-shots`) from the upload zip.
+- The same quality rules apply: 2× capture, exact-size downscale, no alpha, check every image.
+
+## Overlays on a light canvas
+
+An overlay or dark UI placed on a light page must set its own foreground (`text-card-foreground`, or a local `.dark` wrapper). Otherwise labels inherit the page's text colour and vanish.
+
 ## Screenshot content rules
 
 - Five screenshots, each with one idea and a two-line lowercase headline: the main action, another site, another site plus hover, the hover/peek feature, another page type (for example the YouTube watch page).

@@ -9,12 +9,14 @@ description: >
   motion-designed promo video, YouTube thumbnail and copy, and social cuts (Reels, X, Facebook).
   Use whenever the user wants to build, redesign, package, publish, update or market a Chrome
   extension, or asks for extension store assets, promo videos or launch posts, even if they only
-  mention one of these steps.
+  mention one of these steps. Also use it for listing-only work: writing store listing copy,
+  generating store screenshots or promo tiles, filling the Developer Dashboard, privacy
+  justifications, Google Analytics store metrics, or submitting an update for review.
 ---
 
 # Chrome extension: build → verify → publish → promote
 
-This skill is the whole pipeline. It works with the narrower `chrome-web-store-listing` skill (dashboard field rules, 5-brand cap, GA4). When both apply, follow this one and use that one's reference links for policy detail.
+This skill is the whole pipeline, including the store listing. For listing-only work (an existing extension that needs copy, store art, a dashboard pass or an update), go straight to phases 4, 6 and 7: [policy-compliance.md](references/policy-compliance.md), [store-assets.md](references/store-assets.md), [publishing.md](references/publishing.md).
 
 Reference files. Read the one for the phase you're in:
 
