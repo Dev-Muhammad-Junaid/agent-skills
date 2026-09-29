@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Distract",
+  "version": "1.1.0",
+  "description": "Click the parts of YouTube, X, Facebook and Instagram you don't want, and they're gone.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "*://*.x.com/*",
+    "*://*.twitter.com/*",
+    "*://*.facebook.com/*",
+    "*://*.instagram.com/*"
+  ],
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_title": "Distract",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.youtube.com/*",
+        "*://*.x.com/*",
+        "*://*.twitter.com/*",
+        "*://*.facebook.com/*",
+        "*://*.instagram.com/*"
+      ],
+      "js": [
+        "src/zones.js",
+        "src/content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "minimum_chrome_version": "110",
+  "author": {
+    "email": "dev.muhammadjunaid@gmail.com"
+  }
+}

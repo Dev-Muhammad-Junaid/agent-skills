@@ -1,0 +1,60 @@
+<!doctype html>
+<!-- SKILL NOTE: popup with a stubbed chrome.* API. Query params drive state (p, v, hide, absent, bare, focus). Used by previews, tests and every store/video template. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Distract popup test</title>
+<script>document.write('<link rel="stylesheet" href="../src/popup.css?'+Date.now()+'">')</script>
+<style>html{background:#888}body{margin:24px auto;box-shadow:0 10px 40px rgba(0,0,0,.3)}</style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="mark">distract<span class="dot">.</span></span>
+      <span class="site" id="site" hidden></span>
+    </div>
+    <button class="switch" id="power" role="switch" aria-checked="true" aria-label="Distract on this site" hidden>
+      <span class="knob"></span>
+    </button>
+  </header>
+  <main id="app"></main>
+  <div class="tip" id="tip" role="tooltip" hidden></div>
+  <script>
+  // Minimal chrome.* stub. ?p=youtube&v=home&absent=yt-chat,yt-ads&hide=yt-shorts  (p=none → off-site, p=reload)
+  const q = new URLSearchParams(location.search);
+  const store = { hidden: Object.fromEntries((q.get('hide') || '').split(',').filter(Boolean).map((z) => [z, true])), paused: {} };
+  const absent = (q.get('absent') || '').split(',');
+  window.__log = [];
+  window.chrome = {
+    runtime: { lastError: null },
+    storage: { sync: { get: (k, cb) => cb(JSON.parse(JSON.stringify(store))), set: (o) => { Object.assign(store, o); __log.push(['set', JSON.stringify(o)]); } } },
+    tabs: {
+      query: async () => [{ id: 1, url: q.get('p') === 'reload' ? 'https://www.youtube.com/' : 'https://example.com/' }],
+      sendMessage: (id, msg, cb) => {
+        const p = q.get('p');
+        if (!p || p === 'none' || p === 'reload') { chrome.runtime.lastError = { message: 'no receiver' }; cb(undefined); chrome.runtime.lastError = null; return; }
+        const zones = Object.keys(DX.platforms[p].zones);
+        cb({ platform: p, view: q.get('v') || DX.platforms[p].views[0].id, present: Object.fromEntries(zones.map((z) => [z, !absent.includes(z)])) });
+      },
+      connect: () => ({ postMessage: (m) => __log.push(['port', JSON.stringify(m)]) }),
+      reload: () => __log.push(['reload']),
+    },
+  };
+  </script>
+  <script>document.write('<script src="../src/zones.js?'+Date.now()+'"><\/script><script src="../src/brands.js?'+Date.now()+'"><\/script><script src="../src/popup.js?'+Date.now()+'"><\/script>')</script>
+  <script>
+  // Store-asset hooks: &bare=1 drops the test backdrop; &focus=<zone> shows that block in its hover state.
+  addEventListener('load', () => setTimeout(() => {
+    const q = new URLSearchParams(location.search);
+    if (q.get('bare')) document.documentElement.classList.add('bare');
+    const z = q.get('focus') && document.querySelector(`.z[data-zone="${q.get('focus')}"]`);
+    if (z) z.classList.add('force-hover');
+    document.documentElement.dataset.ready = '1';
+  }, 50));
+  </script>
+  <style>
+  html.bare { background: transparent; } html.bare body { margin: 0; box-shadow: none; }
+  .z.force-hover { box-shadow: 0 0 0 1.5px var(--surface-sunken), 0 0 0 3px var(--accent); z-index: calc(var(--z, 2) + 5); }
+  </style>
+</body>
+</html>

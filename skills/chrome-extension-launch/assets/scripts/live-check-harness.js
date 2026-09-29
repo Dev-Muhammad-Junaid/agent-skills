@@ -1,0 +1,10 @@
+// Pasted after zones.js into a live tab to test zones without installing the extension.
+const P=DX.platformForHost(location.hostname);
+const view=DX.viewFor(P,location.pathname);document.documentElement.setAttribute('data-dx-view',view.id);
+const T={set(el,z,on){if(on)return T.mark(el,z);const c=el.getAttribute("data-dx");if(!c)return;const r=c.split(" ").filter(x=>x!==z).join(" ");r?el.setAttribute("data-dx",r):el.removeAttribute("data-dx")},mark(el,z){if(!el||el===document.body||el===document.documentElement)return;const c=el.getAttribute('data-dx')||'';if(!c.split(' ').includes(z))el.setAttribute('data-dx',(c+' '+z).trim())},climb(el,f,max=30){for(let i=0;el&&i<max;i++,el=el.parentElement){if(el===document.body)return null;if(f(el))return el}return null},headText(el,n=200){return (el.textContent||'').slice(0,n)}};
+window.__dxTag=()=>{try{P.tagger&&P.tagger(T)}catch(e){return String(e)}};
+const sels=id=>{const z=P.zones[id];const l=(z.css||[]).slice();if(z.tag)l.push(`[data-dx~="${id}"]`);return l};
+const R=e=>{const r=e.getBoundingClientRect();return [r.x|0,r.y|0,r.width|0,r.height|0]};
+window.__dxReport=()=>{const rep={};for(const id of DX.zonesInView(view)){rep[id]=sels(id).map(s=>{let n=0,f=null;try{const els=document.querySelectorAll(s);n=els.length;f=[...els].find(e=>e.getBoundingClientRect().height>0)}catch(e){return 'ERR'}return n?n+(f?':'+R(f):':0h'):0}).join(' | ')}return rep};
+window.__dxHide=(ids)=>{let st=document.getElementById('dx-test');if(!st){st=document.createElement('style');st.id='dx-test';document.documentElement.appendChild(st)}let css='';for(const id of ids){const z=P.zones[id];const v=z.views?`:is(${z.views.map(v=>`[data-dx-view="${v}"]`).join(',')})`:'';const g=`html:not([data-dx-peek="${id}"])${v}`;css+=`${g} :is(${sels(id).join(',')}){display:none!important}\n`;if(z.extra)css+=z.extra.replace(/(^|})\s*([^{}]+)\{/g,(m,b,s)=>`${b}${g} ${s.trim()}{`)+'\n'}st.textContent=css;return css.length};
+const e=window.__dxTag();JSON.stringify({view:view.id,err:e,rep:window.__dxReport()});
