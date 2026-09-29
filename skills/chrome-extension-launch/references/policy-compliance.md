@@ -21,8 +21,11 @@ Official sources (check them when unsure; policies change):
 **Listing text** (title, summary, description)
 - [ ] Summary ≤132 characters. It comes from `manifest.description` and leads with the action.
 - [ ] At most **5** websites or brands named. Parent companies may appear in a one-line disclaimer.
+- [ ] Family products of one brand (Gmail, Drive, Docs under Google) count as that one brand. Screenshot-only brands never appear in the title, summary or description.
+- [ ] Count purpose words too: the product name, its main verb (switch/hide), and nouns like account, overlay, feed, productivity.
 - [ ] No keyword more than **5** times, and no keyword lists. Run `node assets/scripts/listing-audit.js copy.txt --brands … --words … --parents …`.
-- [ ] No "#1", "best", fake reviews, or claims of endorsement.
+- [ ] Description ≤16,000 characters, 1.5–6k of real explanation. Order: what it does → who it's for → features → permissions → how to use → disclaimer. No roadmap features.
+- [ ] No "#1", "best", "Editor's Choice", fake reviews, or claims of endorsement (text or promo tiles).
 - [ ] Disclaimer when naming other companies: "X is not affiliated with or endorsed by Google, YouTube, X Corp., or Meta."
 
 **Images**
@@ -42,7 +45,7 @@ Official sources (check them when unsure; policies change):
 
 - `storage`: "Saves [the user's choices, e.g. which sections are hidden] so they apply on every visit. Stored with chrome.storage and never sent anywhere."
 - Host permissions: "The content script [does X] on [sites] only, and the popup reads which site and page type the current tab shows so it can [show Y]. No other sites are accessed."
-- `clipboardWrite`: "Used only when the user clicks [control] to copy [thing]. The extension never reads the clipboard."
+- `clipboardWrite`: "Used only when the user clicks [control] to copy [thing]. The extension never reads the clipboard." (`clipboardWrite` is write-only; never claim clipboard read.)
 - `tabs` (only if truly needed): "Reads the active tab's URL to [feature]. No browsing history is stored."
 
 ## Single purpose template
