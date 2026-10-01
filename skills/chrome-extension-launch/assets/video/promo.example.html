@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- SKILL NOTE: Distract's 30 s promo. A worked example of the deterministic seek(t) timeline; copy it and rewrite the scenes. -->
+<!-- SKILL NOTE: Distract's 30 s promo. A worked example of the deterministic seek(t) timeline. Reuse the engine (seek, easing, iframes, render), never its storyboard, transitions or sound: each extension gets its own (see promo-video-and-social.md). -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -261,6 +261,12 @@ const show = (el, on) => { el.style.display = on ? '' : 'none'; };
 
 // Scene windows (seconds)
 const S = { intro: [0, 3.3], problem: [3.1, 6.2], demo: [5.9, 13.6], platforms: [13.3, 19.6], theme: [19.4, 23.6], privacy: [23.4, 26.4], outro: [26.1, 30] };
+// Beats the soundtrack follows (soundtrack.js reads window.CUES; keep every beat here, not in a second list).
+window.CUES = {
+  clicks: [7.9, 9.2, 10.4, 14.6, 16.05, 17.5, 18.95], clickTone: 'down', pause: 22.5,
+  whooshes: [5.5, 13.1, 19.35, 23.3, 26.05], pops: [1.2, 2.45, 26.3], ticks: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => 3.55 + i * 0.12),
+};
+window.COVER_T = 2.9; // Reels cover frame: the finished intro lockup
 
 // ───────────────────────── build static bits ─────────────────────────
 for (const id of ['cap-a', 'cap-b']) $(id).style.top = L.capTop + 'px';

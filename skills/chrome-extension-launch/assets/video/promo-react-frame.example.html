@@ -1,0 +1,775 @@
+<!-- SKILL NOTE: Switchit's 48 s promo, a second worked example: real React UI frames, typed captions with a rolling accent, callouts, soft cuts between parts, a separate vertical layout. Study it for technique; do NOT copy its storyboard, transitions or sound for another extension. -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Smart Profiles Switcher promo</title>
+<!--
+  Smart Profiles Switcher promo, 48 s. ?format=landscape (1920×1080, default) or ?format=vertical (1080×1920, Reels / Shorts).
+  Every frame is a pure function of time: window.seek(t) poses the whole scene, including the real overlay
+  (app/store-shots/frame) in same-origin iframes; store/video/render.js captures it frame by frame.
+  Serve with `node store/serve.js`, then open /store/video/promo.html: it plays itself (?t=12 freezes a moment).
+
+  Switchit's own motion language (not Distract's):
+  - each part cuts straight to the next feature with a short soft dip, no title cards
+  - captions are typed like the overlay's search field; the accent line rolls in like an account list landing
+  - presses pulse the pressed element's own outline; callouts point at the part of the overlay doing the work
+-->
+<link rel="stylesheet" href="../templates/store.css">
+<style>
+  :root { --window: 0 0 0 1px rgba(9, 9, 11, 0.07), 0 44px 90px -30px rgba(24, 24, 27, 0.36); }
+  * { box-sizing: border-box; transition: none !important; animation: none !important; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--canvas); }
+  .stage { position: absolute; inset: 0; overflow: hidden; background: var(--canvas); }
+  .scene { position: absolute; inset: 0; }
+  .display { font-weight: 700; letter-spacing: -0.045em; }
+  .accent { color: var(--accent); }
+
+  /* captions: typed first line, rolling accent line */
+  .cap { position: absolute; left: 96px; width: 640px; }
+  .cap h2 { margin: 0; font-size: 66px; line-height: 72px; font-weight: 700; letter-spacing: -0.045em; }
+  .cap .l1 { white-space: pre; }
+  .cap .caret { display: inline-block; width: 5px; height: 0.82em; margin-left: 4px; vertical-align: -0.06em; background: var(--accent); border-radius: 2px; }
+  .cap .l2 { display: block; height: 72px; overflow: hidden; color: var(--accent); }
+  .reel { display: block; will-change: transform; }
+  .cap .reel span { display: block; height: 72px; white-space: nowrap; }
+  .cap .reel span.decoy { color: var(--muted); opacity: .55; }
+  .cap p { margin: 22px 0 0; font-size: 24px; line-height: 36px; color: var(--muted); max-width: 560px; }
+  .cap.center { left: 0; right: 0; width: auto; text-align: center; }
+  .cap.center p { margin-left: auto; margin-right: auto; }
+
+
+  /* intro reel */
+  .reel-win { position: absolute; left: 50%; top: 50%; width: 560px; height: 252px; margin: -126px 0 0 -280px; overflow: hidden; border-radius: 26px; }
+  .reel-strip { position: absolute; left: 0; right: 0; top: 0; }
+  .rrow { height: 84px; display: flex; align-items: center; gap: 18px; padding: 0 24px; }
+  .rrow img { width: 52px; height: 52px; border-radius: 12px; object-fit: cover; }
+  .rrow b { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
+  .rrow em { margin-left: auto; font-style: normal; min-width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 22px; font-weight: 700; color: var(--accent); background: color-mix(in srgb, var(--cyan) 15%, transparent); }
+  .hl { position: absolute; left: 50%; top: 50%; width: 560px; height: 84px; margin: -42px 0 0 -280px; border-radius: 18px; background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  .hl::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 6px; border-radius: 4px; background: var(--emerald); }
+  .lockup { position: absolute; left: 50%; top: 50%; display: flex; align-items: center; gap: 30px; transform: translate(-50%, -50%); white-space: nowrap; }
+  .lockup img { width: 120px; height: 120px; border-radius: 28px; }
+  .wordmark { font-size: 96px; line-height: 1.05; }
+  .tagline { position: absolute; left: 0; right: 0; text-align: center; font-size: 44px; line-height: 52px; }
+  .tagline .l2 { display: inline-block; height: 52px; overflow: hidden; vertical-align: top; color: var(--accent); }
+  .tagline .reel span { display: block; height: 52px; }
+
+  /* problem: a deck of sign-in dialogs */
+  .dlg { position: absolute; width: 380px; border-radius: 22px; background: var(--surface); box-shadow: 0 0 0 1px var(--border), 0 30px 60px -30px rgba(0, 0, 0, .35); padding: 26px 28px; }
+  .dlg h4 { margin: 0 0 14px; font-size: 26px; letter-spacing: -0.02em; display: flex; align-items: center; gap: 12px; }
+  .dlg h4 .glyph { width: 26px; height: 26px; }
+  .dlg i { display: block; height: 12px; border-radius: 6px; background: color-mix(in srgb, var(--ink) 9%, transparent); margin-top: 10px; }
+  .dlg .btn { margin-top: 18px; display: inline-block; padding: 10px 18px; border-radius: 999px; font-size: 18px; font-weight: 600; }
+  .dlg .btn.rose { background: var(--tint-rose); color: var(--ink-rose); }
+  .dlg .btn.zinc { background: var(--sunken); color: var(--ink); }
+  .dlg .acct { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 18px; }
+  .dlg .acct img { width: 34px; height: 34px; border-radius: 50%; }
+
+  /* browser window */
+  .window { position: absolute; left: 640px; top: 72px; width: 1220px; height: 936px; border-radius: 22px; background: var(--surface); box-shadow: var(--window); overflow: hidden; }
+  .chrome { height: 58px; display: flex; align-items: center; gap: 12px; padding: 0 20px; background: var(--sunken); border-bottom: 1px solid var(--border); position: relative; z-index: 3; }
+  .chrome .dots { display: flex; gap: 8px; } .chrome .dots i { width: 13px; height: 13px; border-radius: 50%; background: #d4d4d8; display: block; }
+  .chrome .url { margin-left: 18px; flex: 1; height: 36px; border-radius: 999px; background: var(--surface); display: flex; align-items: center; gap: 10px; padding: 0 18px; color: var(--muted); font-size: 17px; white-space: nowrap; overflow: hidden; }
+  .chrome .url svg { width: 14px; height: 14px; fill: none; stroke: var(--muted); stroke-width: 2; flex: none; }
+  .chrome .url b { color: var(--accent); font-weight: 600; background: color-mix(in srgb, var(--cyan) 14%, transparent); border-radius: 6px; padding: 1px 4px; }
+  .chrome .ext img { width: 26px; height: 26px; border-radius: 7px; display: block; }
+  .progress { position: absolute; left: 0; top: 58px; height: 4px; background: var(--accent); z-index: 4; border-radius: 0 3px 3px 0; }
+  .window .page { position: absolute; left: 0; right: 0; top: 58px; bottom: 0; border-radius: 0; box-shadow: none; }
+  .window .scrim { position: absolute; left: 0; right: 0; top: 58px; bottom: 0; background: rgba(9, 9, 11, .07); }
+
+  iframe.overlay { position: absolute; border: 0; background: transparent; box-shadow: var(--window); }
+  .darken { position: absolute; inset: 0; background: #09090b; pointer-events: none; }
+
+  /* keys */
+  .keys { position: absolute; display: flex; gap: 14px; font-size: 36px; z-index: 20; }
+  .keys .key { min-width: 2.1em; height: 2em; border-radius: .38em; padding: 0 .55em; }
+  .keys .plus { align-self: center; color: var(--muted); font-weight: 600; }
+
+  /* callouts */
+  .note { position: absolute; z-index: 30; display: flex; align-items: center; gap: 12px; padding: 13px 20px; border-radius: 16px; background: var(--ink); color: var(--canvas); font-size: 20px; line-height: 26px; font-weight: 600; max-width: 250px; box-shadow: 0 20px 40px -20px rgba(0, 0, 0, .45); }
+  .note .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--emerald); }
+  .note.cyan .dot { background: var(--cyan); } .note.rose .dot { background: var(--rose); }
+  .wire { position: absolute; z-index: 29; height: 2px; background: var(--ink); }
+  .wire::before { content: ""; position: absolute; left: -6px; top: -5px; width: 12px; height: 12px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 4px var(--canvas); }
+
+  /* press pulse: the pressed element's own outline grows and fades */
+  .pulse { position: absolute; z-index: 48; border: 3px solid var(--accent); pointer-events: none; }
+  .cursor { position: absolute; left: 0; top: 0; width: 42px; height: 42px; z-index: 50; filter: drop-shadow(0 6px 10px rgba(0,0,0,.28)); }
+
+  /* sites */
+  .sites { position: absolute; left: 0; right: 0; display: flex; justify-content: center; gap: 16px; }
+  .sites span { width: 74px; height: 74px; border-radius: 22px; background: var(--surface); box-shadow: 0 0 0 1px var(--border), 0 14px 28px -18px rgba(0, 0, 0, .4); display: flex; align-items: center; justify-content: center; color: var(--ink); }
+  .sites .glyph { width: 36px; height: 36px; }
+  .site-note { position: absolute; left: 0; right: 0; text-align: center; font-size: 28px; color: var(--muted); }
+  .site-note b { color: var(--ink); }
+
+  /* privacy: a list, like the overlay */
+  .plist { position: absolute; left: 50%; width: 760px; margin-left: -380px; border-radius: 28px; background: var(--surface); box-shadow: 0 0 0 1px var(--border), var(--window); overflow: hidden; padding: 10px; }
+  .prow { position: relative; height: 84px; display: flex; align-items: center; gap: 20px; padding: 0 26px; border-radius: 18px; font-size: 32px; font-weight: 600; letter-spacing: -0.02em; }
+  .prow svg { width: 34px; height: 34px; fill: none; stroke: var(--emerald); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .prow em { margin-left: auto; font-style: normal; font-size: 20px; color: var(--muted); font-weight: 500; }
+
+  .center-text { position: absolute; left: 0; right: 0; text-align: center; }
+  .outro-sub { position: absolute; left: 0; right: 0; text-align: center; font-size: 34px; color: var(--muted); }
+
+  /* ── vertical 9:16: big UI, everything inside the Reels safe zone (≈230–1600 px) ── */
+  html[data-format="vertical"] .cap { left: 64px; width: 952px; }
+  html[data-format="vertical"] .cap h2 { font-size: 86px; line-height: 94px; }
+  html[data-format="vertical"] .cap .l2, html[data-format="vertical"] .cap .reel span { height: 94px; }
+  html[data-format="vertical"] .cap p { font-size: 32px; line-height: 44px; max-width: 900px; margin-top: 16px; }
+  html[data-format="vertical"] .window { left: 24px; top: 610px; width: 1032px; height: 1180px; }
+  html[data-format="vertical"] .keys { font-size: 52px; }
+  html[data-format="vertical"] .note { font-size: 34px; line-height: 42px; padding: 18px 28px; max-width: 900px; border-radius: 22px; }
+  html[data-format="vertical"] .note .dot { width: 14px; height: 14px; }
+  html[data-format="vertical"] .lockup { flex-direction: column; gap: 36px; white-space: normal; text-align: center; }
+  html[data-format="vertical"] .lockup img { width: 150px; height: 150px; border-radius: 34px; }
+  html[data-format="vertical"] .wordmark { font-size: 112px; width: 900px; }
+  html[data-format="vertical"] .tagline { font-size: 56px; line-height: 64px; }
+  html[data-format="vertical"] .tagline .l2, html[data-format="vertical"] .tagline .reel span { height: 64px; }
+  html[data-format="vertical"] .dlg { width: 560px; padding: 34px 38px; }
+  html[data-format="vertical"] .dlg h4 { font-size: 38px; } html[data-format="vertical"] .dlg .acct { font-size: 28px; } html[data-format="vertical"] .dlg .btn { font-size: 26px; }
+  html[data-format="vertical"] .sites { gap: 12px; }
+  html[data-format="vertical"] .sites span { width: 96px; height: 96px; border-radius: 26px; } html[data-format="vertical"] .sites .glyph { width: 48px; height: 48px; }
+  html[data-format="vertical"] .site-note { font-size: 40px; padding: 0 60px; }
+  html[data-format="vertical"] .plist { width: 960px; margin-left: -480px; }
+  html[data-format="vertical"] .prow { height: 110px; font-size: 42px; } html[data-format="vertical"] .prow svg { width: 44px; height: 44px; } html[data-format="vertical"] .prow em { font-size: 28px; }
+  html[data-format="vertical"] .outro-sub { font-size: 46px; padding: 0 60px; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <!-- 1 · intro: an account list spins, lands on one, folds into the icon -->
+  <div class="scene" id="s-intro">
+    <div class="hl" id="intro-hl"></div>
+    <div class="reel-win" id="reel-win"><div class="reel-strip" id="reel-strip"></div></div>
+    <div class="lockup" id="lockup">
+      <img src="../../public/icons/icon-128.png" id="intro-icon" alt="">
+      <div class="wordmark display"><span id="wm"></span><span id="wm-caret" style="display:inline-block;width:7px;height:.8em;margin-left:6px;background:var(--accent);border-radius:3px;vertical-align:-0.05em"></span></div>
+    </div>
+    <div class="tagline display" id="tagline">every account. <span class="l2"><span class="reel" id="tag-reel"><span style="color:var(--muted)">two clicks.</span><span>one shortcut.</span></span></span></div>
+  </div>
+
+  <!-- 2 · the problem -->
+  <div class="scene" id="s-problem">
+    <div class="cap center" id="cap-p" data-l1="signed in as" data-roll="alex@example.com|jordan@company.com" data-l2="the wrong one."></div>
+    <div id="deck"></div>
+  </div>
+
+  <!-- 3 · the app: discovery, number keys, Drive access -->
+  <div class="scene" id="s-app">
+    <div class="window" id="win">
+      <div class="chrome"><span class="dots"><i></i><i></i><i></i></span><span class="url" id="url"></span><span class="ext"><img src="../../public/icons/icon-128.png" alt=""></span></div>
+      <div class="progress" id="progress"></div>
+      <div class="page" id="pg-gmail-0"></div>
+      <div class="page" id="pg-gmail-2"></div>
+      <div class="page" id="pg-drive"></div>
+      <div class="page" id="pg-doc"></div>
+      <div class="scrim" id="scrim"></div>
+    </div>
+    <iframe class="overlay" id="ov-app"></iframe>
+    <div class="cap" id="cap-a" data-l1="press Alt+L." data-l2="it finds them all." data-p="Every account this browser is signed in to. The active one is marked."></div>
+    <div class="cap" id="cap-b" data-l1="press a number." data-roll="0|1" data-l2="you’re switched." data-p="Same page, other account. No sign-out, no new window."></div>
+    <div class="cap" id="cap-c" data-l1="need access?" data-l2="it checks for you." data-p="On a shared Drive, Docs or Figma file it asks every signed-in account."></div>
+    <div class="cap" id="cap-d" data-l1="one has access." data-l2="already picked." data-p="Press Enter to open the file as that account."></div>
+    <div class="cap" id="cap-e" data-l1="same link." data-l2="right account."></div>
+  </div>
+
+  <!-- 4 · every site -->
+  <div class="scene" id="s-sites">
+    <div class="cap center" id="cap-s" data-l1="works where" data-l2="you work."></div>
+    <div class="sites" id="sites"></div>
+    <iframe class="overlay car" id="car-0"></iframe><iframe class="overlay car" id="car-1"></iframe><iframe class="overlay car" id="car-2"></iframe><iframe class="overlay car" id="car-3"></iframe>
+    <iframe class="overlay car" id="car-4"></iframe><iframe class="overlay car" id="car-5"></iframe><iframe class="overlay car" id="car-6"></iframe><iframe class="overlay car" id="car-7"></iframe>
+    <div class="site-note" id="site-note"></div>
+  </div>
+
+  <!-- 5 · search, then settings -->
+  <div class="scene" id="s-tune">
+    <div class="darken" id="darken"></div>
+    <div class="window" id="win2">
+      <div class="chrome"><span class="dots"><i></i><i></i><i></i></span><span class="url" id="url2"></span><span class="ext"><img src="../../public/icons/icon-128.png" alt=""></span></div>
+      <div class="progress" id="progress2"></div>
+      <div class="page" id="pg2-a"></div>
+      <div class="page" id="pg2-b"></div>
+      <div class="scrim"></div>
+    </div>
+    <iframe class="overlay" id="ov-tune"></iframe>
+    <div class="cap" id="cap-f" data-l1="type a name." data-l2="press enter."></div>
+    <div class="cap" id="cap-g" data-l1="rename. reorder." data-l2="hide the rest." data-p="The gear opens settings. Changes save as you make them."></div>
+    <div class="cap" id="cap-h" data-l1="light or dark." data-l2="or the system’s."></div>
+  </div>
+
+  <!-- 6 · privacy -->
+  <div class="scene" id="s-privacy">
+    <div class="cap center" id="cap-v" data-l1="private" data-l2="by design."></div>
+    <div class="plist" id="plist"></div>
+  </div>
+
+  <!-- 7 · outro -->
+  <div class="scene" id="s-outro">
+    <div class="lockup" id="lockup2"><img src="../../public/icons/icon-128.png" alt=""><div class="wordmark display">Smart Profiles Switcher</div></div>
+    <div class="outro-sub" id="out-1">free on the Chrome Web Store</div>
+    <div class="keys" id="out-keys"><span class="key">Alt</span><span class="plus">+</span><span class="key">L</span></div>
+  </div>
+
+  <!-- shared, always on top -->
+  <div class="keys" id="keys"></div>
+  <div class="wire" id="wire"></div><div class="note" id="note"><i class="dot"></i><span></span></div>
+  <div class="pulse" id="pulse"></div>
+  <svg class="cursor" id="cursor" viewBox="0 0 24 24"><path d="M4 2.5v17.2l4.7-4.5 3.1 6.9 3.1-1.4-3.1-6.8h6.5L4 2.5Z" fill="#09090b" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
+</div>
+
+<script src="../brands.js"></script>
+<script src="../fixtures/scenes.js"></script>
+<script src="../templates/page.js"></script>
+<script src="../templates/overlay.js"></script>
+<script>
+// ───────────────────────── format + helpers ─────────────────────────
+const DURATION = 48;
+const FORMAT = new URLSearchParams(location.search).get('format') === 'vertical' ? 'vertical' : 'landscape';
+const TALL = FORMAT === 'vertical';
+const W = TALL ? 1080 : 1920, H = TALL ? 1920 : 1080;
+document.documentElement.dataset.format = FORMAT;
+for (const el of [document.documentElement, document.body]) { el.style.width = W + 'px'; el.style.height = H + 'px'; }
+
+// Every position that differs between formats lives here.
+const L = TALL ? {
+  cap: 214, capCenter: 300, keysY: 1492, appZoom: 2.0, ovCy: 1010, sitesTop: 560, carY: 1110, carZoom: 1.9, carSpace: 1060, siteNote: 1470,
+  tuneZoom: 2.0, editZoom: 1.82, tuneTop: 640, plistTop: 720, deck: [[60, 660, -7], [470, 820, 6], [120, 1150, 4], [500, 1310, -5]],
+  outroSub: 1270, outroKeys: 1360, tagTop: 1240, reelScale: 1.5,
+} : {
+  cap: 300, capCenter: 110, keysY: 760, appZoom: 1.45, ovCy: null, sitesTop: 330, carY: 680, carZoom: 1.5, carSpace: 800, siteNote: 990,
+  tuneZoom: 1.45, editZoom: 1.3, tuneTop: null, plistTop: 380, deck: [[120, 420, -7], [1420, 380, 6], [300, 700, 4], [1240, 700, -5]],
+  outroSub: 680, outroKeys: 760, tagTop: 660, reelScale: 1,
+};
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const E = {
+  out: (p) => 1 - Math.pow(1 - p, 3),
+  out5: (p) => 1 - Math.pow(1 - p, 5),
+  inOut: (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2),
+  back: (p) => { const c1 = 1.4, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); },
+  in: (p) => p * p * p,
+};
+const $ = (id) => document.getElementById(id);
+const css = (el, o) => { for (const k in o) el.style[k] = o[k]; };
+const show = (el, on) => { el.style.display = on ? '' : 'none'; }; // display, not visibility
+
+// ───────────────────────── timeline ─────────────────────────
+// Where one part hands over to the next: a soft dip (out 0.2 s, in 0.25 s), no title cards.
+const CUTS = [3.65, 7.0, 26.15, 32.15, 41.65, 44.15];
+const S = {
+  intro: [0, CUTS[0]], problem: [CUTS[0], CUTS[1]], app: [CUTS[1], CUTS[2]], sites: [CUTS[2], CUTS[3]],
+  tune: [CUTS[3], CUTS[4]], privacy: [CUTS[4], CUTS[5]], outro: [CUTS[5], DURATION],
+};
+// app beats
+const A = {
+  keys1: 8.2, open1: 8.35, finding: 8.75, reveal: 9.35, revealStep: 0.22,
+  num: 13.3, reload1: 13.7,
+  toDrive: 16.25, keys2: 17.25, open2: 17.4, results: [[2, 18.45], [0, 18.7], [3, 19.0], [1, 19.25], [4, 19.45]],
+  enter: 21.7, reload2: 22.0,
+};
+// sites carousel
+const CAR = ['youtube', 'linkedin', 'x', 'instagram', 'facebook', 'figmaFile', 'notion', 'github'];
+const CAR_NOTE = {
+  youtube: '<b>YouTube</b> · Choose opens Google’s own chooser', linkedin: '<b>LinkedIn</b> · your profile and the Pages you run',
+  x: '<b>X</b> · every handle you’re signed in to', instagram: '<b>Instagram</b> · personal and brand accounts',
+  facebook: '<b>Facebook</b> · profile and Pages', figmaFile: '<b>Figma</b> · checks who can open the file',
+  notion: '<b>Notion</b> · workspaces, plus Add account', github: '<b>GitHub</b> · personal and work accounts',
+};
+const CAR_T0 = 26.75, CAR_STEP = 0.62;
+const CAR_T = CAR.map((_, i) => CAR_T0 + i * CAR_STEP);
+// tune beats
+const T = {
+  types: [32.85, 33.0, 33.15], enter: 33.9, reload: 34.05, reopen: 34.75,
+  gear: 35.55, nameClick: 36.15, nameTypes: [...' (work)'].map((_, i) => 36.35 + i * 0.075), up: 37.3, eye: 37.9,
+  theme: 39.0, done: 40.35,
+};
+
+// The soundtrack follows these (soundtrack.js reads window.CUES; no second copy of the numbers).
+window.CUES = {
+  reel: [0.1, 1.05], land: 1.05, icon: 1.35,
+  keys: [A.keys1, A.keys1 + 0.08, A.num, A.keys2, A.keys2 + 0.08, A.enter, T.enter, ...T.types, ...T.nameTypes],
+  pops: [0, 1, 2, 3, 4].map((i) => A.reveal + i * A.revealStep),
+  opens: [A.open1, A.open2, T.reopen],
+  switches: [A.num + 0.02, A.enter + 0.02, T.enter + 0.02, ...CAR_T.map((c, i) => (CAR[i] === 'figmaFile' ? null : c + 0.25)).filter((c) => c)],
+  checking: [[A.open2 + 0.1, A.results[A.results.length - 1][1]], [CAR_T[5] - 0.5, CAR_T[5] + 0.12]],
+  no: A.results.filter(([i]) => i !== 3).map(([, at]) => at).concat([CAR_T[5] + 0.12]),
+  yes: [A.results.find(([i]) => i === 3)[1], CAR_T[5] + 0.16],
+  reloads: [A.reload1, A.toDrive, A.reload2, T.reload],
+  clicks: [T.gear, T.nameClick, T.up, T.eye, T.theme, T.done],
+  theme: T.theme, privacy: [0, 1, 2, 3].map((i) => 42.15 + i * 0.22), outro: 44.4,
+};
+window.COVER_T = 2.95;
+
+// ───────────────────────── static bits ─────────────────────────
+const AV = { alex: '../fixtures/avatars/men-32.jpg', sam: '../fixtures/avatars/men-75.jpg', casey: '../fixtures/avatars/men-11.jpg' };
+$('pg-gmail-0').innerHTML = Page('gmail', { avatar: AV.alex });
+$('pg-gmail-2').innerHTML = Page('gmail', { avatar: AV.sam });
+$('pg-drive').innerHTML = Page('drive', { avatar: AV.sam });
+$('pg-doc').innerHTML = Page('docs', { avatar: AV.casey });
+$('pg2-a').innerHTML = Page('gmail', { avatar: AV.alex });
+$('pg2-b').innerHTML = Page('gmail', { avatar: AV.casey });
+$('sites').innerHTML = ['google', 'youtube', 'linkedin', 'x', 'instagram', 'facebook', 'figma', 'notion', 'github'].map((id) => `<span data-site="${id}">${Brand(id)}</span>`).join('');
+const SITE_OF = { youtube: 'youtube', linkedin: 'linkedin', x: 'x', instagram: 'instagram', facebook: 'facebook', figmaFile: 'figma', notion: 'notion', github: 'github' };
+
+// intro reel: the fixture people, looped
+const PEOPLE = [['men-32', 'Alex Rivera'], ['women-44', 'Jordan Lee'], ['men-75', 'Sam Patel'], ['men-11', 'Casey Nguyen'], ['women-68', 'Morgan Chen'], ['women-21', 'Riley Brooks'], ['men-52', 'Quinn Adams'], ['women-12', 'Taylor Kim']];
+const REEL_N = 24;
+$('reel-strip').innerHTML = Array.from({ length: REEL_N }, (_, i) => { const p = PEOPLE[i % PEOPLE.length]; return `<div class="rrow"><img src="../fixtures/avatars/${p[0]}.jpg" alt=""><b>${p[1]}</b><em>${i % 10}</em></div>`; }).join('');
+
+// problem deck: what a wrong account looks like
+const DECK = [
+  `<h4>${Brand('drive')}You need access</h4><i style="width:90%"></i><i style="width:64%"></i><span class="btn rose">Request access</span>`,
+  `<h4>${Brand('google')}Choose an account</h4><div class="acct"><img src="${AV.alex}">alex@example.com</div><div class="acct"><img src="${AV.sam}">sam@school.edu</div>`,
+  `<h4>${Brand('linkedin')}Posting as Alex Rivera</h4><i style="width:80%"></i><i style="width:55%"></i>`,
+  `<h4>${Brand('gmail')}Sign out of all accounts</h4><i style="width:70%"></i><span class="btn zinc">Sign out</span>`,
+];
+$('deck').innerHTML = DECK.map((h, i) => `<div class="dlg" id="dlg-${i}">${h}</div>`).join('');
+
+// privacy rows
+const CHECK = '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
+$('plist').innerHTML = [['no account to create', 'nothing to sign up for'], ['no tracking', 'no analytics'], ['never stores passwords', 'uses sessions you have'], ['stays on this device', 'Chrome storage only']]
+  .map(([a, b], i) => `<div class="prow" id="pr-${i}">${CHECK}${a}<em>${b}</em></div>`).join('');
+
+// captions: build the typed line, caret, rolling accent line and paragraph from data attributes
+document.querySelectorAll('.cap').forEach((c) => {
+  const decoys = c.dataset.roll ? c.dataset.roll.split('|') : [];
+  c.innerHTML = `<h2><span class="l1"></span><span class="caret"></span><span class="l2"><span class="reel">${decoys.map((d) => `<span class="decoy">${d}</span>`).join('')}<span>${c.dataset.l2}</span></span></span></h2>${c.dataset.p ? `<p>${c.dataset.p}</p>` : ''}`;
+});
+
+// ───────────────────────── caption motion ─────────────────────────
+const TYPE_RATE = 0.032;
+function caption(id, t, a, b) {
+  const c = $(id);
+  const on = t > a - 0.02 && t < b + 0.02;
+  c.style.display = on ? '' : 'none';
+  if (!on) return;
+  c.style.top = (c.classList.contains('center') ? L.capCenter : L.cap) + 'px';
+  const l1 = c.dataset.l1, typed = Math.round(prog(t, a, a + l1.length * TYPE_RATE) * l1.length);
+  c.querySelector('.l1').textContent = l1.slice(0, typed);
+  const rollAt = a + l1.length * TYPE_RATE + 0.08;
+  const caret = c.querySelector('.caret');
+  caret.style.opacity = t < rollAt + 0.1 ? 1 : 0;
+  const reel = c.querySelector('.reel'), n = reel.children.length, lh = reel.children[0].offsetHeight;
+  // the accent line rolls up through any decoys and lands, like a list settling on an account
+  const r = E.out5(prog(t, rollAt, rollAt + 0.35 + (n - 1) * 0.16));
+  css(reel, { transform: `translateY(${lerp(lh, -(n - 1) * lh, r)}px)` });
+  const para = c.querySelector('p');
+  if (para) { const p = E.out(prog(t, rollAt + 0.3, rollAt + 0.7)); css(para, { opacity: p, transform: `translateY(${lerp(14, 0, p)}px)` }); }
+  const out = E.in(prog(t, b - 0.25, b));
+  css(c, { opacity: 1 - out, transform: `translateY(${-out * 26}px)` });
+}
+
+// ───────────────────────── shared pieces ─────────────────────────
+function keys(t, list, a, b, pressAt = []) {
+  const el = $('keys');
+  const on = t > a && t < b;
+  el.style.display = on ? '' : 'none';
+  if (!on) return;
+  const html = list.map((k) => (k === '+' ? '<span class="plus">+</span>' : `<span class="key">${k}</span>`)).join('');
+  if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
+  const p = E.out(prog(t, a, a + 0.25)) * (1 - E.in(prog(t, b - 0.2, b)));
+  const x = TALL ? W / 2 - el.offsetWidth / 2 : 96;
+  css(el, { left: x + 'px', top: L.keysY + 'px', opacity: p, transform: `translateY(${lerp(24, 0, p)}px)` });
+  [...el.querySelectorAll('.key')].forEach((k, i) => {
+    const at = pressAt[i];
+    const d = at == null ? 0 : clamp(1 - Math.abs(t - at) / 0.12);
+    css(k, { transform: `translateY(${d * 5}px)`, boxShadow: `0 0 0 1px var(--border), 0 ${0.14 * (1 - d)}em 0 var(--border)`, background: d > 0.25 ? 'var(--tint-cyan)' : 'var(--surface)', color: d > 0.25 ? 'var(--ink-cyan)' : 'var(--ink)' });
+  });
+}
+
+// A callout. Landscape: a pill beside the overlay with a wire to the thing it names. Vertical: a pill under the overlay.
+// `box` is the element the pill sits beside (the overlay frame, or a rect-like object).
+function note(t, a, b, text, target, box, tone = '') {
+  const el = $('note'), wire = $('wire');
+  if (!(t > a && t < b && target)) return; // seek() hides callouts once per frame
+  el.style.display = wire.style.display = '';
+  el.className = 'note ' + tone;
+  const span = el.querySelector('span');
+  if (span.textContent !== text) span.textContent = text;
+  const p = E.out(prog(t, a, a + 0.3)) * (1 - E.in(prog(t, b - 0.2, b)));
+  const fr = box.getBoundingClientRect();
+  if (TALL) {
+    // under the overlay, or above it when the overlay runs into the key caps
+    const below = fr.bottom + 30, room = below + el.offsetHeight < 1470;
+    css(el, { left: W / 2 - el.offsetWidth / 2 + 'px', top: (room ? below : fr.top - el.offsetHeight - 26) + 'px', opacity: p, transform: `translateY(${lerp(16, 0, p)}px)` });
+    wire.style.display = 'none';
+  } else {
+    if (target.below) {
+      // under a small target (URL, avatar), no wire
+      css(el, { left: Math.min(target.x - 24, W - el.offsetWidth - 24) + 'px', top: target.y + 16 + 'px', opacity: p, transform: `translateY(${lerp(-10, 0, p)}px)` });
+      wire.style.display = 'none';
+    } else {
+      css(el, { left: fr.right + 36 + 'px', top: target.y - el.offsetHeight / 2 + 'px', opacity: p, transform: `translateX(${lerp(18, 0, p)}px)` });
+      css(wire, { left: fr.right - 4 + 'px', top: target.y - 1 + 'px', width: 40 * p + 'px', opacity: p });
+    }
+  }
+}
+const boxOf = (r) => ({ getBoundingClientRect: () => r });
+
+function pulse(t, at, rect, round = 14) {
+  const el = $('pulse');
+  const p = prog(t, at, at + 0.45);
+  if (!(rect && t >= at && p < 1)) return; // seek() hides it once per frame
+  el.style.display = '';
+  const g = lerp(0, 16, E.out(p));
+  css(el, { left: rect.left - g + 'px', top: rect.top - g + 'px', width: rect.width + 2 * g + 'px', height: rect.height + 2 * g + 'px', borderRadius: round + g + 'px', opacity: 1 - p });
+}
+
+function cursorAt(x, y, on, press = 0) {
+  css($('cursor'), { transform: `translate(${x - 6}px, ${y - 4}px) scale(${1 - press * 0.14})`, opacity: on ? 1 : 0 });
+}
+function along(stops, t) {
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [a, pa] = stops[i], [b, pb] = stops[i + 1];
+    if (t <= b) { const p = E.inOut(prog(t, a, b)); return { x: lerp(pa.x, pb.x, p), y: lerp(pa.y, pb.y, p) }; }
+  }
+  return stops[stops.length - 1][1];
+}
+const spin = (t) => Math.round((t * 420) % 360);
+
+// ───────────────────────── real overlays ─────────────────────────
+const OV = {};
+function pose(id, props) {
+  const o = OV[id], key = JSON.stringify(props);
+  if (o._key !== key) { o.pose(props); o._key = key; }
+  return o;
+}
+const q = (o, sel) => o.frame.contentDocument.querySelector(sel);
+// rect of an element inside an overlay, in stage coordinates
+function rectIn(o, sel) {
+  const el = typeof sel === 'string' ? q(o, sel) : sel;
+  if (!el) return null;
+  const a = o.center(el, 0, 0), b = o.center(el, 1, 1);
+  return { left: a.x, top: a.y, width: b.x - a.x, height: b.y - a.y, right: b.x, bottom: b.y };
+}
+async function loadOverlays() {
+  const jobs = [
+    ['ov-app', Scene('gmail', { mode: 'loading' }), L.appZoom],
+    ...CAR.map((s, i) => [`car-${i}`, Scene(s), L.carZoom]),
+    ['ov-tune', Scene('gmail', {}), L.tuneZoom],
+  ];
+  await Promise.all(jobs.map(async ([id, props, zoom]) => { OV[id] = await Overlay.mount($(id), props, zoom); OV[id]._key = JSON.stringify(props); }));
+}
+// centre an overlay frame on the window's page area (where the extension puts it)
+function placeOverlay(f, win, extra = {}) {
+  const wr = win.getBoundingClientRect();
+  const cy = L.ovCy ?? (wr.top + 58 + (wr.height - 58) / 2);
+  css(f, { left: wr.left + wr.width / 2 - f.offsetWidth / 2 + 'px', top: cy - f.offsetHeight / 2 + 'px', ...extra });
+}
+
+function windowUrl(el, text, hi) {
+  const lock = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  const html = lock + (hi ? text.replace(hi, `<b>${hi}</b>`) : text);
+  if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
+}
+function progressBar(el, t, at) {
+  const p = prog(t, at, at + 0.45);
+  css(el, { width: E.out(p) * 100 + '%', opacity: t >= at && p < 1 ? 1 : 0 });
+}
+function pages(map) { for (const id in map) $(id).style.opacity = map[id]; }
+
+// ───────────────────────── scenes ─────────────────────────
+function seek(t) {
+  const inS = (k) => t >= S[k][0] && t < S[k][1];
+  for (const k in S) {
+    show($('s-' + k), inS(k));
+    const [a, b] = S[k];
+    $('s-' + k).style.opacity = (a > 0 ? E.out(prog(t, a, a + 0.25)) : 1) * (b < DURATION ? 1 - E.in(prog(t, b - 0.2, b)) : 1);
+  }
+  $('stage').style.opacity = 1;
+  cursorAt(0, 0, false);
+  for (const id of ['note', 'wire', 'pulse']) $(id).style.display = 'none';
+  keys(t, [], 0, 0);
+  if (inS('intro')) intro(t);
+  if (inS('problem')) problem(t);
+  if (inS('app')) app(t);
+  if (inS('sites')) sites(t);
+  if (inS('tune')) tune(t);
+  if (inS('privacy')) privacy(t);
+  if (inS('outro')) outro(t);
+}
+
+function intro(t) {
+  // the reel spins fast and lands on Alex
+  const rowH = 84, landRow = 16;
+  const r = E.out5(prog(t, 0.1, 1.05));
+  $('reel-strip').style.transform = `translateY(${lerp(-2 * rowH, -(landRow - 1) * rowH, r)}px)`;
+  const fold = E.inOut(prog(t, 1.15, 1.5));
+  const winIn = E.out(prog(t, 0, 0.3));
+  const sc = L.reelScale;
+  css($('reel-win'), { opacity: winIn * (1 - fold), transform: `scale(${sc * lerp(1, 0.5, fold)})`, clipPath: `inset(${fold * 84}px 0 ${fold * 84}px 0 round 26px)` });
+  css($('intro-hl'), { opacity: winIn * (1 - prog(t, 1.25, 1.45)), transform: `scale(${sc * lerp(1, 0.3, fold)})` });
+  const pop = E.back(prog(t, 1.3, 1.65));
+  css($('intro-icon'), { transform: `scale(${pop})`, opacity: prog(t, 1.3, 1.4) });
+  const word = 'Smart Profiles Switcher';
+  const n = Math.round(prog(t, 1.55, 1.55 + word.length * 0.028) * word.length);
+  $('wm').textContent = word.slice(0, n);
+  $('wm-caret').style.opacity = t > 1.5 && t < 2.3 ? 1 : 0;
+  const out = E.in(prog(t, 3.2, 3.6));
+  css($('lockup'), { opacity: prog(t, 1.3, 1.4) * (1 - out), transform: `translate(-50%, -50%) translateY(${-out * 30}px)` });
+  // tagline: the accent rolls past "two clicks." and lands on "one shortcut."
+  const tg = E.out(prog(t, 2.2, 2.5));
+  css($('tagline'), { top: L.tagTop + 'px', opacity: tg * (1 - out), transform: `translateY(${lerp(18, 0, tg)}px)` });
+  const roll = E.out5(prog(t, 2.45, 2.95));
+  $('tag-reel').style.transform = `translateY(${-roll * $('tag-reel').children[0].offsetHeight}px)`;
+}
+
+function problem(t) {
+  caption('cap-p', t, 3.72, 6.95);
+  DECK.forEach((_, i) => {
+    const el = $('dlg-' + i), [x, y, rot] = L.deck[i];
+    // dealt like cards, then shuffled sideways as the switch comes
+    const deal = E.back(prog(t, 3.68 + i * 0.13, 4.13 + i * 0.13));
+    const drift = Math.sin((t - 4) * 1.1 + i * 1.7) * 8;
+    const shuffle = E.in(prog(t, 6.45 + i * 0.04, 6.9));
+    const dir = i % 2 ? 1 : -1;
+    css(el, { left: x + 'px', top: y + drift + 'px', opacity: prog(t, 3.68 + i * 0.13, 3.8 + i * 0.13), transform: `translateX(${dir * shuffle * 700}px) rotate(${rot * deal + dir * shuffle * 10}deg) scale(${lerp(0.7, 1, deal)})` });
+  });
+}
+
+function app(t) {
+  const win = $('win'), f = $('ov-app');
+  const wIn = E.out(prog(t, 7.0, 7.45));
+  css(win, { transform: `translateY(${lerp(90, 0, wIn)}px)`, opacity: wIn });
+
+  // page + URL state
+  const onSam = t >= A.reload1 + 0.35, onDrive = t >= A.toDrive + 0.2, onDoc = t >= A.reload2 + 0.35;
+  pages({
+    'pg-gmail-0': !onSam ? 1 : 0, 'pg-gmail-2': onSam && !onDrive ? 1 : 0,
+    'pg-drive': onDrive && !onDoc ? 1 : 0, 'pg-doc': onDoc ? E.out(prog(t, A.reload2 + 0.35, A.reload2 + 0.6)) : 0,
+  });
+  const samAv = $('pg-gmail-2').querySelector('.av');
+  samAv.style.transform = `scale(${t < A.reload1 + 0.4 ? 0.5 : E.back(prog(t, A.reload1 + 0.4, A.reload1 + 0.7))})`;
+  const caseyAv = $('pg-doc').querySelector('.av');
+  caseyAv.style.transform = `scale(${t < A.reload2 + 0.45 ? 0.5 : E.back(prog(t, A.reload2 + 0.45, A.reload2 + 0.75))})`;
+  if (!onSam) windowUrl($('url'), 'mail.google.com/mail/u/0/#inbox');
+  else if (t < A.toDrive) windowUrl($('url'), 'mail.google.com/mail/u/2/#inbox', '/u/2/');
+  else if (t < A.reload2 + 0.2) windowUrl($('url'), 'docs.google.com/document/d/q3-plan/edit');
+  else windowUrl($('url'), 'docs.google.com/document/d/q3-plan/edit?authuser=3', 'authuser=3');
+  progressBar($('progress'), t, t < A.toDrive ? A.reload1 : t < A.reload2 ? A.toDrive : A.reload2);
+
+  // overlay: open 1 (loading → finding → rows), switch with "2"; open 2 (checking → results → Enter)
+  let props = null, open = 0;
+  if (t >= A.open1 && t < A.num + 0.4) {
+    open = E.out(prog(t, A.open1, A.open1 + 0.25)) * (1 - E.in(prog(t, A.num + 0.15, A.num + 0.4)));
+    if (t < A.finding) props = Scene('gmail', { mode: 'loading', spin: spin(t) });
+    else if (t < A.reveal) props = Scene('gmail', { mode: 'finding' });
+    else props = Scene('gmail', { reveal: Math.min(5, 1 + Math.floor((t - A.reveal) / A.revealStep)), highlightedIndex: t >= A.num ? 2 : 0 });
+  } else if (t >= A.open2 && t < A.enter + 0.4) {
+    open = E.out(prog(t, A.open2, A.open2 + 0.25)) * (1 - E.in(prog(t, A.enter + 0.12, A.enter + 0.4)));
+    const known = A.results.filter(([, at]) => t >= at).map(([i]) => i);
+    const base = Scene('drive', { activeId: '2', spin: spin(t) });
+    base.accounts = base.accounts.map((a, i) => (known.includes(i) ? a : { ...a, hasAccess: undefined }));
+    // profile-switcher.tsx: once the current account is denied and exactly one other has access, it is highlighted
+    base.highlightedIndex = known.includes(2) && known.includes(3) ? 3 : 2;
+    props = base;
+  }
+  f.style.display = props ? '' : 'none';
+  if (props) {
+    pose('ov-app', props);
+    placeOverlay(f, win, { opacity: open, transform: `scale(${lerp(0.96, 1, open)})` });
+  }
+  $('scrim').style.opacity = open;
+  const o = OV['ov-app'];
+
+  caption('cap-a', t, 7.65, 12.35);
+  caption('cap-b', t, 12.5, 16.15);
+  caption('cap-c', t, 16.4, 20.15);
+  caption('cap-d', t, 20.3, 22.3);
+  caption('cap-e', t, 22.45, 25.75);
+  if (t < 12.5) keys(t, ['Alt', '+', 'L'], 7.95, 10.2, [A.keys1, A.keys1 + 0.08]);
+  else if (t < 16.3) keys(t, ['2'], 12.85, 14.3, [A.num]);
+  else if (t < 20.3) keys(t, ['Alt', '+', 'L'], 16.95, 18.6, [A.keys2, A.keys2 + 0.08]);
+  else keys(t, ['Enter ↵'], 20.9, 22.4, [A.enter]);
+
+  // callouts pointing at what the overlay is doing
+  if (props && props.mode === 'list') {
+    const row = (i, fx = 0.98) => o.row(i) && o.center(o.row(i), fx, 0.5);
+    if (t < A.num) {
+      note(t, A.reveal + 0.1, A.reveal + 1.55, 'finds every signed-in account', row(Math.min(4, Math.floor((t - A.reveal) / A.revealStep))), f, 'cyan');
+      note(t, A.reveal + 1.65, A.num - 0.1, 'Active marks who you are now', row(0), f);
+    } else if (t > A.open2 && t < A.results[2][1]) {
+      note(t, A.open2 + 0.35, A.results[2][1], 'checking each account…', row(1), f, 'cyan');
+    } else if (t >= A.results[2][1] && t < A.enter) {
+      note(t, A.results[2][1] + 0.05, A.enter, 'Casey can open it, so it’s picked', row(3), f);
+    }
+  }
+  if (t > A.reload1 + 0.5 && t < A.toDrive - 0.1) {
+    const u = $('url').querySelector('b').getBoundingClientRect();
+    note(t, A.reload1 + 0.5, A.toDrive - 0.1, 'same inbox, now as Sam', { x: u.left, y: u.bottom, below: true }, boxOf({ bottom: 1300 }), 'cyan');
+  }
+  if (t > A.reload2 + 0.6) {
+    const av = caseyAv.getBoundingClientRect();
+    note(t, A.reload2 + 0.6, 25.6, 'opened as Casey', { x: av.right - 200, y: av.bottom, below: true }, boxOf({ bottom: 1300 }));
+  }
+
+  if (o.row(2) && t >= A.num && t < A.num + 0.45) pulse(t, A.num, rectIn(o, o.row(2)));
+  if (o.row(3) && t >= A.enter && t < A.enter + 0.45) pulse(t, A.enter, rectIn(o, o.row(3)));
+}
+
+function sites(t) {
+  caption('cap-s', t, 26.25, 31.75);
+  const enter = E.out(prog(t, 26.2, 26.7)), leave = E.in(prog(t, 31.45, 31.8));
+  let idx = 0;
+  for (let i = 0; i < CAR_T.length - 1; i++) if (t > CAR_T[i] + 0.3) idx = i + E.inOut(prog(t, CAR_T[i] + 0.3, CAR_T[i + 1]));
+  CAR.forEach((site, i) => {
+    const f = $(`car-${i}`), d = i - idx;
+    const at = CAR_T[i] + 0.25;
+    const near = Math.abs(d) < 2.2;
+    f.style.display = near ? '' : 'none';
+    if (!near) return;
+    let props;
+    if (site === 'figmaFile') {
+      props = Scene(site, { spin: spin(t), pending: t < CAR_T[i] + 0.12, highlightedIndex: t >= CAR_T[i] + 0.16 ? 1 : 0 });
+    } else {
+      props = Scene(site, { highlightedIndex: t > at - 0.3 ? 1 : -1, activeId: t >= at ? SCENES[site].accounts[1].id : SCENES[site].accounts[0].id });
+    }
+    pose(`car-${i}`, props);
+    const cx = W / 2 + d * L.carSpace + (1 - enter) * W * 0.5 - leave * W * 0.4;
+    const s = lerp(1, 0.82, clamp(Math.abs(d)));
+    css(f, { left: cx - f.offsetWidth / 2 + 'px', top: L.carY - f.offsetHeight / 2 + 'px', transform: `scale(${s})`, opacity: clamp(1.2 - Math.abs(d) * 0.75) * enter * (1 - leave), zIndex: 10 - Math.round(Math.abs(d) * 2) });
+    if (Math.abs(d) < 0.3 && OV[`car-${i}`].row(1) && t >= at && t < at + 0.45) pulse(t, at, rectIn(OV[`car-${i}`], OV[`car-${i}`].row(1)));
+  });
+  const focus = CAR[Math.round(idx)];
+  $('sites').style.top = L.sitesTop + 'px';
+  [...$('sites').children].forEach((el, i) => {
+    const on = el.dataset.site === SITE_OF[focus] ? 1 : 0;
+    const p = E.back(prog(t, 26.35 + i * 0.04, 26.7 + i * 0.04));
+    css(el, { transform: `translateY(${lerp(30, 0, p) - on * 10}px) scale(${1 + on * 0.12})`, opacity: Math.min(prog(t, 26.35 + i * 0.04, 26.45 + i * 0.04), 1 - leave) * (on ? 1 : 0.55), boxShadow: on ? '0 0 0 3px var(--accent), 0 14px 28px -18px rgba(0,0,0,.4)' : '' });
+  });
+  const sn = $('site-note'), html = CAR_NOTE[focus];
+  if (sn.dataset.html !== html) { sn.innerHTML = html; sn.dataset.html = html; }
+  css(sn, { top: L.siteNote + 'px', opacity: enter * (1 - leave) * clamp(1 - Math.abs(idx - Math.round(idx)) * 3) });
+}
+
+function tune(t) {
+  const win = $('win2'), f = $('ov-tune'), o = OV['ov-tune'];
+  const switched = t >= T.reload + 0.35;
+  pages({ 'pg2-a': switched ? 0 : 1, 'pg2-b': switched ? 1 : 0 });
+  windowUrl($('url2'), switched ? 'mail.google.com/mail/u/3/#inbox' : 'mail.google.com/mail/u/0/#inbox', switched ? '/u/3/' : null);
+  progressBar($('progress2'), t, T.reload);
+
+  // search → Enter → reopen → settings → done
+  const typed = 'cas'.slice(0, T.types.filter((a) => t >= a).length);
+  const order = t >= T.up ? [0, 2, 1, 3, 4] : null;
+  const nameTyped = ' (work)'.slice(0, T.nameTypes.filter((a) => t >= a).length);
+  const rename = nameTyped ? { '1': 'Jordan Lee' + nameTyped } : null;
+  const hidden = t >= T.eye ? ['4'] : null;
+  const dark = t >= T.theme + 0.2;
+  const theme = dark ? 'dark' : 'light';
+  let props, open = 1;
+  if (t < T.enter + 0.3) {
+    props = Scene('gmail', { query: typed, highlightedIndex: 0, theme });
+    open = E.out(prog(t, 32.2, 32.5)) * (1 - E.in(prog(t, T.enter + 0.1, T.enter + 0.3)));
+  } else if (t < T.gear + 0.1 || t >= T.done) {
+    const edited = t >= T.done;
+    props = Scene('gmail', { activeId: '3', highlightedIndex: edited ? 3 : 3, theme, order: edited ? order : null, rename: edited ? rename : null, hidden: edited ? hidden : null });
+    open = t < T.reopen ? 0 : E.out(prog(t, T.reopen, T.reopen + 0.25));
+  } else {
+    const focus = t >= T.nameClick && t < T.up ? { row: 1, field: 'name' } : null;
+    const pr = [[T.up, 'up-2'], [T.eye, 'eye-4'], [T.theme, 'theme']].find(([at]) => t >= at && t < at + 0.12);
+    props = Scene('gmail', { mode: 'edit', activeId: '3', theme, themePref: dark ? 'dark' : 'light', order, rename, hidden, focus, pressed: pr ? pr[1] : null });
+  }
+  const zoom = props.mode === 'edit' ? L.editZoom : L.tuneZoom;
+  if (o.zoom !== zoom) { o.props = props; o.setZoom(zoom); o._key = null; }
+  pose('ov-tune', props);
+  f.style.display = open > 0 ? '' : 'none';
+  const wr = win.getBoundingClientRect();
+  const top = L.tuneTop ?? (wr.top + 58 + (wr.height - 58) / 2 - f.offsetHeight / 2);
+  css(f, { left: wr.left + wr.width / 2 - f.offsetWidth / 2 + 'px', top: top + 'px', opacity: open, transform: `scale(${lerp(0.96, 1, open)})` });
+
+  // the dark theme spreads from the theme button
+  const dk = $('darken');
+  if (props.mode === 'edit') { const b = o.center('[data-edit="theme"]'); dk.dataset.cx = b.x; dk.dataset.cy = b.y; }
+  const r = E.inOut(prog(t, T.theme, T.theme + 0.7)) * Math.hypot(W, H) * 1.05;
+  css(dk, { clipPath: `circle(${r}px at ${dk.dataset.cx || W / 2}px ${dk.dataset.cy || H / 2}px)`, display: t >= T.theme ? '' : 'none' });
+  const isDark = t >= T.theme + 0.35;
+  ['cap-f', 'cap-g', 'cap-h'].forEach((id) => { $(id).style.color = isDark ? '#fafafa' : ''; });
+
+  caption('cap-f', t, 32.3, 34.6);
+  caption('cap-g', t, 34.85, 38.85);
+  caption('cap-h', t, 39.0, 41.25);
+  if (t < 34.6) keys(t, ['Enter ↵'], 33.35, 34.4, [T.enter]);
+
+  // pointer through the settings
+  if (t > 35.0 && t < T.done + 0.6) {
+    let pts;
+    if (props.mode !== 'edit' && t < T.done) {
+      const g = o.center(q(o, 'svg.lucide-settings'));
+      pts = [[35.0, { x: g.x + 160, y: g.y + 220 }], [T.gear - 0.05, g], [T.gear + 0.15, g]];
+    } else if (props.mode === 'edit') {
+      const at = (sel, fx = 0.5, fy = 0.5) => o.center(sel, fx, fy);
+      const name = at('[data-edit="name-1"]', 0.75, 0.55), up = at('[data-edit="up-2"]'), eye = at('[data-edit="eye-4"]'), th = at('[data-edit="theme"]'), done = o.center(q(o, '.lucide-check'));
+      pts = [[T.gear + 0.1, done], [T.nameClick - 0.05, name], [T.up - 0.35, name], [T.up - 0.05, up], [T.eye - 0.05, eye], [T.theme - 0.3, eye], [T.theme - 0.05, th], [T.done - 0.05, done], [T.done + 0.1, done]];
+    } else {
+      const g = o.center(q(o, 'svg.lucide-settings'));
+      pts = [[T.done, g], [T.done + 0.6, { x: g.x + 60, y: g.y + 90 }]];
+    }
+    const pos = along(pts, t);
+    const press = Math.max(...CUES.clicks.map((c) => clamp(1 - Math.abs(t - c) / 0.09)));
+    cursorAt(pos.x, pos.y, true, press);
+  }
+  // pulse the pressed control
+  const P = [[T.gear, () => rectIn(o, q(o, 'svg.lucide-settings')?.parentElement)], [T.up, () => rectIn(o, '[data-edit="up-2"]')], [T.eye, () => rectIn(o, '[data-edit="eye-4"]')], [T.theme, () => rectIn(o, '[data-edit="theme"]')], [T.enter, () => rectIn(o, o.row(0))]];
+  for (const [pat, rect] of P) if (t >= pat && t < pat + 0.45) pulse(t, pat, rect(), 10);
+
+  // callouts
+  const row = (sel, fx = 0.98) => { const el = typeof sel === 'string' ? q(o, sel) : sel; return el && o.center(el, fx, 0.5); };
+  if (props.mode === 'edit') {
+    if (t < T.up) note(t, T.nameClick, T.up - 0.05, 'rename any account', row('[data-edit-row="1"]'), f, 'cyan');
+    else if (t < T.eye) note(t, T.up + 0.05, T.eye - 0.05, 'reorder the list', row('[data-edit-row="1"]'), f, 'cyan');
+    else if (t < T.theme) note(t, T.eye + 0.05, T.theme - 0.05, 'hide what you don’t use', row('[data-edit-row="4"]'), f, 'rose');
+    else note(t, T.theme + 0.6, T.done - 0.05, 'saved automatically', row('[data-edit="add"]'), f);
+  } else if (t > T.done + 0.1) {
+    note(t, T.done + 0.15, 41.2, 'your names, your order', row(o.row(2)), f, 'cyan');
+  } else if (t > T.types[0] && t < T.enter) {
+    note(t, T.types[0] + 0.1, T.enter, 'search by name or email', row(o.row(0)), f, 'cyan');
+  }
+}
+
+function privacy(t) {
+  caption('cap-v', t, 41.75, 43.75);
+  const lIn = E.out(prog(t, 41.8, 42.2)), out = E.in(prog(t, 43.5, 43.8));
+  css($('plist'), { top: L.plistTop + 'px', opacity: lIn * (1 - out), transform: `translateY(${lerp(40, 0, lIn)}px)` });
+  CUES.privacy.forEach((at, i) => {
+    const p = E.back(prog(t, at, at + 0.3));
+    const on = t >= at && t < at + 0.35;
+    css($('pr-' + i), { opacity: prog(t, at, at + 0.1), transform: `translateX(${lerp(-30, 0, p)}px)`, background: on ? 'color-mix(in srgb, var(--ink) 6%, transparent)' : 'transparent' });
+  });
+}
+
+function outro(t) {
+  const p = E.back(prog(t, 44.2, 44.7));
+  css($('lockup2'), { transform: `translate(-50%, -50%) translateY(${TALL ? -160 : -60}px) scale(${lerp(0.88, 1, p)})`, opacity: prog(t, 44.2, 44.4) });
+  const a = E.out(prog(t, 44.6, 45.0));
+  css($('out-1'), { top: L.outroSub + 'px', opacity: a, transform: `translateY(${lerp(18, 0, a)}px)` });
+  const k = $('out-keys'), b = E.out(prog(t, 44.85, 45.25));
+  css(k, { left: W / 2 - k.offsetWidth / 2 + 'px', top: L.outroKeys + 'px', opacity: b, transform: `translateY(${lerp(18, 0, b)}px)` });
+  [...k.querySelectorAll('.key')].forEach((el, i) => {
+    const at = 45.6 + i * 0.08, d = clamp(1 - Math.abs(t - at) / 0.12);
+    css(el, { transform: `translateY(${d * 5}px)`, background: d > 0.25 ? 'var(--tint-cyan)' : 'var(--surface)' });
+  });
+  $('stage').style.opacity = 1 - prog(t, 47.3, 48) * 0.999;
+}
+
+// ───────────────────────── boot ─────────────────────────
+window.DURATION = DURATION;
+(async () => {
+  await document.fonts.ready;
+  await loadOverlays();
+  await Promise.all([...document.images].map((i) => i.decode().catch(() => {})));
+  window.seek = seek;
+  seek(0);
+  document.documentElement.dataset.ready = '1';
+  const qs = new URLSearchParams(location.search);
+  if (qs.has('t')) seek(+qs.get('t'));
+  else if (!qs.has('render')) { const t0 = performance.now(); const loop = () => { seek(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; loop(); }
+})();
+</script>
+</body>
+</html>

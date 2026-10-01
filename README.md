@@ -10,7 +10,7 @@ Skills are modular packages that extend your AI agent's capabilities with specia
 
 | Skill | Description | Install |
 |---|---|---|
-| `chrome-extension-launch` | End-to-end Chrome extension playbook: theme from your design system, MV3 build, live + e2e verification, Web Store policy compliance and listing copy, light/dark store assets, dashboard publishing and GA4, promo video, YouTube and social cuts | `npx skills add Dev-Muhammad-Junaid/agent-skills@chrome-extension-launch -g` |
+| `chrome-extension-launch` | End-to-end Chrome extension playbook: theme from your design system, MV3 build, live + e2e verification, Web Store policy compliance and listing copy, light/dark store assets (also from React/Next UIs), dashboard publishing and GA4, a promo video with its own motion and sound per extension, YouTube and social cuts | `npx skills add Dev-Muhammad-Junaid/agent-skills@chrome-extension-launch -g` |
 | `vps-project-setup` | Deploy any project to a Linux VPS — covers compatibility checks, PM2, tunneling, firewalls, CI/CD, and more | `npx skills add Dev-Muhammad-Junaid/agent-skills@vps-project-setup -g` |
 
 ## Installation
