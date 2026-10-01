@@ -11,7 +11,19 @@ Building blocks in the example:
 - `blockCenter(frame, zone)` maps a block inside a zoomed or transformed iframe to stage coordinates, for the cursor and click ripples.
 - Word-by-word caption rises (`captionWords`), a brand-pill wipe transition, a click ripple and press-scale on the cursor.
 
-## Motion-design brief (30 s, reuse the structure)
+## Every extension gets its own film (read this before storyboarding)
+
+The first Switchit cut reused Distract's storyboard, pill wipes and blip sounds, and skipped what the product actually does. The user's verdict: information missed out, and "it seems to copy exactly what Distract does". So:
+
+1. **Read the product before the storyboard.** Open the main UI component and the provider/content code and list every state: loading, discovery ("Finding accounts…"), in-progress work (spinners while access is checked), results, automatic choices (Switchit highlights the one account with access), settings/edit mode, per-site extras (YouTube "Choose", Notion "Add account"), keyboard paths (Alt+L, number keys, search + Enter). Each state that matters gets screen time, and the real UI shows it (frame modes, `spin` for spinners).
+2. **Show cause and effect.** Key press → overlay; spinners → results → auto-pick; Enter → page reloads → URL and header avatar change. Small callouts name what the UI is doing ("checking each account…", "Casey can open it, so it's picked").
+3. **Own motion language, derived from the product's UI.** Never reuse another extension's transitions. Switchit's: captions type like the search field and the accent line rolls like a list landing; presses pulse the pressed element's outline. Distract's: brand pills wiping, word rises.
+4. **Own sound palette.** Distract: pad, 120 bpm pulse, falling blips. Switchit: plucked arpeggio at 112 bpm, two-tone toggle per switch, a scanner tick while checking that resolves into chimes, bubble pops per discovered account. Write a new `soundtrack.js` per product; keep only the cue mechanism.
+5. **No title cards between parts.** A full-screen chapter card (Switchit's first rebuild had a rising band with a number) reads as dead frames; the user asked to remove it. Cut straight into the next feature with a short dip (out 0.2 s, in 0.25 s) and make sure the next part's content starts at the cut, not half a second later.
+6. **Length follows features.** One-trick extension: about 30 s. Several features (Switchit): 45–50 s with brisk beats (0.2–0.6 s steps), which also allows YouTube chapters.
+7. **The vertical cut is its own layout,** not the landscape scaled down: the UI at about 90 % of the width (zoom ≈ 2.0 for a 480 px overlay), captions 86–92 px, callouts under the UI (or above it when there's no room), key caps under the callout, everything between 230 and 1,600 px. The user rejected the first Reels cut as "zoomed out".
+
+## Distract's brief (an example of the shape, not a template)
 
 | Time | Scene | Beats |
 |---|---|---|
@@ -25,11 +37,21 @@ Building blocks in the example:
 
 Style: Canvas tokens, big lowercase display captions, ease-out entrances with ease-in exits, 0.07 s word staggers, nothing linear, no hard cuts except the wipes.
 
+## Cues: one list, owned by the timeline
+
+`promo.html` publishes `window.CUES` (clicks, keys, types, enter, pops, ticks, access, whooshes, pause; `clickTone: 'down'` for hide blips) and `window.COVER_T`. `render-video.js` reads them and passes them to `soundtrack.js`, so moving a beat in the timeline moves its sound too. Define beat constants once (`DEMO_CLICK = 10.3`) and use them in both the scene code and `CUES`.
+
+Per-frame singletons (callout, pulse, key caps) are reset once at the top of `seek()`; helper calls only ever show them. A helper that hides when out of range breaks the moment a second call for another time window runs in the same frame.
+
+An element you roll or move with `transform` must not be `display: inline` (a bare `<span>`): inline boxes ignore transforms, so the roll silently never happens.
+
+Pose real-UI frames only when their props change (`JSON.stringify(props)` as a cache key); a flushSync re-render per frame for 8 iframes is wasted time.
+
 ## QA before the full render
 
-1. Capture stills at every beat (`?t=` or a Playwright loop) and tile them: `ffmpeg -pattern_type glob -i 't*.jpg' -vf "scale=480:270,tile=4x4"`. Name files `t` + `t.toFixed(1).padStart(5,'0')` so they sort correctly.
+1. `STILLS=1 node store/video/render.js` writes `out/stills-landscape.jpg` and `out/stills-vertical.jpg` (a frame every 0.5 s). `STILLS=1 TIMES=8.1,10.3 …` writes full-size frames for a close look. Gitignore `out/*.jpg`.
 2. Check for leaked elements between scenes, overlapping cards, labels cut off, and the cursor landing on the right block.
-3. After rendering, sample the MP4 (`fps=0.5,tile=5x3`), look at a transition strip (`-ss 5.3 -t 1.5 -vf fps=5,tile=4x2`), and check audio with `-af volumedetect` (target: mean about −20 dB, peak about −1.5 dB).
+3. After rendering, sample the MP4 (`fps=0.5,tile=5x3`), look at a transition strip (`-ss 5.3 -t 1.5 -vf fps=5,tile=4x2`), and check audio with `-af volumedetect` (target: mean about −20 dB, peak about −1.5 dB). Normalise the WAV to about −2 dBFS (`0.79 / peak`): AAC overshoots, and −1 dBFS came out at 0.0 dB peak.
 
 ## Render (assets/video/render-video.js)
 
@@ -59,7 +81,7 @@ Style: Canvas tokens, big lowercase display captions, ease-out entrances with ea
 |---|---|
 | `social/<name>-reels-1080x1920.mp4` | Instagram Reels, Facebook Reels, X (vertical), YouTube Shorts, TikTok |
 | `social/<name>-landscape-1920x1080.mp4` | X, Facebook, LinkedIn feeds |
-| `social/reels-cover-1080x1920.png` | Reels cover, taken from the intro lockup frame (it survives the 3:4 grid crop) |
+| `social/reels-cover-1080x1920.png` | Reels cover, written by the `SOCIAL=1` render at `window.COVER_T` (the finished intro lockup, which survives the 3:4 grid crop) |
 
 Captions: open with the headline line ("your feed, minus the detours."), then 2–3 short lines, the privacy line, and the call to action.
 - **Instagram:** link in bio, 3–5 hashtags.
@@ -67,4 +89,4 @@ Captions: open with the headline line ("your feed, minus the detours."), then 2�
 - **X:** ≤280 characters including the link (23 characters counted); pin it for launch week.
 - **LinkedIn:** a builder story in the first person.
 
-Replace `LINK` once the store listing is live.
+Replace `LINK` once the store listing is live. For an extension that's already published, put the real store link in from the start (find it with a web search for the listing name).

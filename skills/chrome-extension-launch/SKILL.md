@@ -16,7 +16,7 @@ description: >
 
 # Chrome extension: build → verify → publish → promote
 
-This skill is the whole pipeline, including the store listing. For listing-only work (an existing extension that needs copy, store art, a dashboard pass or an update), go straight to phases 4, 6 and 7: [policy-compliance.md](references/policy-compliance.md), [store-assets.md](references/store-assets.md), [publishing.md](references/publishing.md).
+This skill is the whole pipeline, including the store listing. For listing-only or promo-only work (an existing extension that needs copy, store art, a video, a dashboard pass or an update), clone the repo where the user says, work on a branch, ask the two questions in [design-and-theme.md § existing extension](references/design-and-theme.md), and go straight to phases 4, 6, 7 and 8: [policy-compliance.md](references/policy-compliance.md), [store-assets.md](references/store-assets.md), [publishing.md](references/publishing.md).
 
 Reference files. Read the one for the phase you're in:
 
@@ -35,16 +35,19 @@ Starter files. Copy them to these paths in the new project; the scripts assume t
 
 | Skill file | Project path | Adapt |
 |---|---|---|
-| `assets/extension/brands.js` | `src/brands.js` | Add or remove platforms |
+| `assets/extension/brands.js` | `src/brands.js` (or `store/brands.js`) | Already has Google, Gmail, Drive, Docs, YouTube, LinkedIn, X, Instagram, Facebook, Figma, Notion, GitHub |
 | `assets/extension/manifest.example.json` | `manifest.json` | Name, description, hosts, scripts |
 | `assets/extension/PRIVACY.example.md`, `SUPPORT.example.md` | `PRIVACY.md`, `store/SUPPORT.md` | Rewrite for the product |
 | `assets/scripts/icons.js`, `package.sh`, `e2e.js`, `nesting-test.js`, `popup-test.html`, `live-check-*.js` | `tools/` | The icon geometry, test assertions, and zone names |
 | `assets/scripts/listing-audit.js` | `tools/` | Run it with the brand and keyword lists |
 | `assets/templates/*` | `store/templates/` | Tokens in `store.css`, the `SHOTS` table, copy |
 | `assets/scripts/render-store.js` | `store/render.js` | The job list |
-| `assets/video/promo.example.html`, `render-video.js`, `soundtrack.js` | `store/video/promo.html`, `render.js`, `soundtrack.js` | Scenes and cue times |
+| `assets/video/promo.example.html` (Distract) or `promo-react-frame.example.html` (Switchit), `render-video.js`, `soundtrack.js` | `store/video/promo.html`, `render.js`, `soundtrack.js` | Write a new storyboard, motion language and sound for each product; reuse only the engine |
+| `assets/react-frame/*` (React/Next UIs only) | `app/store-shots/frame/page.tsx`, `store/serve.js`, `store/templates/overlay.js`, `page.js`, `store/fixtures/scenes.js` | The component, its props, the fixture accounts |
 
-Rendering needs `playwright-core` (install it in a scratch folder), the cached "Chrome for Testing" binary (`~/Library/Caches/ms-playwright/chromium-*`), `ffmpeg` and macOS `sips`. Run the scripts with `PW=<playwright-core path> CHROME=<binary>`.
+Rendering needs `playwright-core` (a devDependency, or `PW=<path>`), the cached "Chrome for Testing" binary (`~/Library/Caches/ms-playwright/chromium-*`, found automatically; `CHROME=` overrides), `ffmpeg` and macOS `sips`.
+
+**UI built with React/Next (Switchit):** don't screenshot a bare fixture page. Render the real component in a frame route and reuse the same templates and video: [store-assets.md § frame pattern](references/store-assets.md).
 
 ## The user's standing requirements
 
@@ -53,6 +56,7 @@ Apply these without being asked. Confirm only the items marked **ask**.
 - **Theme: ask.** The first question on any new extension: "Which design system or theme should it use?" The user keeps design systems as claude.ai Design System artifacts (for example "Canvas"). Read the artifact's `project/README.md` and `project/tokens.json`, and build everything (popup, store art, video) on those tokens in light **and** dark. With no answer, propose two or three directions and wait.
 - **Tone:** nothing overwordy. Direct, polished, works right away, no heavy overhead. UI copy is short; tooltips name things and don't explain obvious clicks.
 - **Visual language (Canvas, when chosen):** lowercase display headlines ending in a period, split over two lines with the second in the accent colour. Warm canvas, one confident blue, soft tints with meaning, ledge buttons, generous radii. No gradients-for-decoration, no emoji, no glassmorphism.
+- **Every promo is its own:** read what the product does (every state in its UI code) before storyboarding, and give each extension its own transitions and sound. Never copy another extension's video.
 - **Delight, kept subtle:** a soft synthesised sound on key toggles, small physical motion, hover previews. Official platform logos (Simple Icons, CC0) wherever a platform is named in the UI.
 - **Both themes everywhere:** popup, store screenshots, promo tiles.
 - **Verify every step.** Research real structure in the user's signed-in Chrome, prove selectors on the live pages, run e2e tests on the packaged extension, and look at every rendered asset before handing it over. Report failures plainly.
@@ -118,3 +122,13 @@ Lead with what was verified and what wasn't. Then list: the files sent, the dash
 | Re-render changes committed images by a pixel | Non-deterministic anti-aliasing | Don't commit untouched assets. `git checkout --` them |
 | A cancelled long command still deleted files | The process started before the cancel | Check `git status` after any interrupt and restore from git |
 | Listing flagged as spam | Too many brands or repeated keywords | ≤5 brands, each keyword ≤5 times (`listing-audit.js`) |
+| Iframe twice as tall as the UI | `getBoundingClientRect()` inside a zoomed document is already zoomed | Use the measured size as-is |
+| Next page reloads mid-render behind the proxy | HMR WebSocket not proxied | Pass `upgrade` through (`serve.js` does) |
+| Frame ignores the theme you posed | The app's ThemeProvider re-applies the system theme | Re-apply on `<html class>` mutations (`frame-page.tsx`) |
+| Fixture code in the upload zip | Listing-only page removed, its chunks left behind | Delete chunks only that page referenced; `grep -rl __pose out` |
+| Audio peaks at 0.0 dB after AAC | WAV normalised to −1 dBFS | Normalise to about −2 dBFS |
+| `magick montage` errors on fonts | No default font configured | Tile with ffmpeg (`tile=5x1`) |
+| Video "copies the other extension", features missing | Storyboard and motion reused instead of read from the product | List every UI state from the code first; new motion and sound per product (promo-video-and-social.md) |
+| Reels look "zoomed out" | Landscape layout scaled into 9:16 | Separate vertical layout, UI at ~90 % width |
+| Rolling caption never moves | `transform` on an inline `<span>` | `display: block` on the moving element |
+| Split light/dark shot looks broken in one set | The halves inherit the page's theme; scrim sits over the dark half | Each half gets its own tokens and scrim; one diagonal for page and UI |

@@ -32,21 +32,34 @@ Wordmark detail: put the text and the dot inside one `<span>` next to the `<img>
 After rendering:
 1. Check sizes and alpha: `sips -g pixelWidth -g pixelHeight -g hasAlpha` on every file. Loop over files; the paths have spaces.
 2. **Look at every image** (Read the PNGs). Check for clipped labels ("End ca…"), headline wrapping, tooltips covering labels, decoration overlapping the popup.
-3. Don't commit re-rendered images that didn't change on purpose (anti-aliasing noise). `git checkout -- store/assets/...`.
+3. Don't commit re-rendered images that didn't change on purpose (anti-aliasing noise). `git checkout -- store/assets/...`. `ONLY=screenshot-5 node store/render.js` re-renders one piece.
+4. For a quick look at many images, tile them with ffmpeg (`-i light/screenshot-%d.png -vf scale=640:400,tile=5x1`); ImageMagick `montage` fails without a configured font.
 
-## Repos with their own renderer (Next.js style, e.g. Switchit)
+## React / Next.js UIs (e.g. Switchit): the frame pattern
 
-Keep the repo's flow instead of adding templates:
+A bare `/store-shots` page that screenshots the UI on a plain background looks flat next to Distract. Use the same templates and video, with the real component in a frame:
 
-```
-npm run package       # versioned zip, manifest at zip root
-npm run store-shots   # listing screenshots + promo tiles (a /store-shots route with fixture data)
-npm run store-promo   # marquee only
-```
+| Skill file (`assets/react-frame/`) | Project path |
+|---|---|
+| `frame-page.tsx` | `app/store-shots/frame/page.tsx`: renders one component, exposes `window.__pose(props)` (synchronous via `flushSync`) and `window.__imagesReady()` |
+| `serve.js` | `store/serve.js`: one origin for `/store/*`, `/public/*` and `next dev` (proxied, **including the HMR WebSocket upgrade**; without it the Next client can reload mid-render). Exports `start()` and `chromePath()` |
+| `overlay.js` | `store/templates/overlay.js`: `Overlay.mount(iframe, props, zoom)` → `{ pose, setZoom, center(sel), row(i) }` |
+| `page.js` | `store/templates/page.js`: a quiet mock of the site behind the UI (header with glyph, skeleton body, optional signed-in avatar) |
+| `scenes.example.js` | `store/fixtures/scenes.js`: fixture accounts → `Scene(id, { theme, highlightedIndex, query, activeId, … })` |
 
-- Layout: listing copy in `qa/store-listing.txt`, current art in `qa/store/`, a versioned archive in `qa/v{version}/`, and the zip at `qa/v{version}/{slug}-{version}.zip` (gitignored).
-- Strip listing-only pages (such as `/store-shots`) from the upload zip.
-- The same quality rules apply: 2× capture, exact-size downscale, no alpha, check every image.
+Rules learned on Switchit:
+- **Theme per frame.** The app's ThemeProvider follows the system theme; the frame re-applies the posed theme with a MutationObserver on `<html class>`. That's what lets one video show a light and a dark overlay side by side.
+- **Zoom maths.** Inside a document with `style.zoom = Z`, `getBoundingClientRect()` already returns zoomed pixels. Size the iframe from the measured height as-is; multiplying by Z again doubles it.
+- **Strip it from the upload.** Remove the `store-shots` export **and** the JS chunks only it referenced (scan its HTML for `static/chunks/*.js`, delete those no shipped file mentions). Check with `grep -rl __pose out`.
+- **Bundle what the render needs:** download stock avatars into `store/fixtures/avatars/`, the display font as woff2 into `store/fonts/`, and use `BrandUrl()` data URLs for favicons. Renders then work offline and never change underneath you.
+- **Matching the product palette:** when the user picks "match the product" over Canvas, convert the app's OKLCH tokens to hex for `store.css` (light + dark), keep Canvas's layout rules (lowercase two-line headlines, tinted panels, pills), and give the tints the product's meanings (Switchit: cyan = switch, emerald = active/access, rose = no access).
+- Wire `npm run store-shots`, `promo-video`, `promo-social` in `package.json`, add `playwright-core` as a devDependency, and write a short `store/README.md`.
+
+### Screenshot ideas that worked
+- A **site mock behind the real UI** with a light scrim, the UI floating centred like the product shows it.
+- A **pointer** resting on the highlighted row (`o.center(o.row(i), 0.56, 0.6)`).
+- **Light/dark split**: the same UI twice, the dark copy clipped on a diagonal. Give each half its own token block (so it reads the same in the light and dark sets), and compute the iframe's clip from one panel-level line so the page cut and the UI cut are collinear.
+- **Key caps** (`.key`) next to the lead when the feature is a shortcut.
 
 ## Overlays on a light canvas
 

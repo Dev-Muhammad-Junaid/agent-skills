@@ -13,6 +13,12 @@ Ask: "Which design system or theme should this extension use?" Common answers:
 2. **A named existing system** ("Canvas", the one Distract uses). Reuse the token block from `assets/templates/store.css` and the Distract popup.
 3. **No preference.** Propose 2–3 directions in one line each (for example "Canvas: warm ground, one blue, rounded display type" / "Mono: black and white, sharp, technical" / "Soft glass: pastel, blurred panels"), with a tiny HTML preview if cheap. Wait for a pick.
 
+## Promo work for an extension that already exists
+
+The UI is already designed, so the questions change. Ask both in one AskUserQuestion:
+1. **Look of the store art and video:** Canvas (as Distract) or the product's own palette. Switchit's user chose the product's zinc + cyan; the Canvas layout rules (lowercase two-line headlines, tinted panels, pills, ledge-style key caps) still apply on top of the product tokens.
+2. **Wordmark:** when the store title and the brand differ (Switchit vs "Smart Profiles Switcher"), ask which leads. A long store title works as a proper-case wordmark without the accent dot; in vertical video it wraps to two centred lines.
+
 ## Turning tokens into the extension
 
 - Put every token on `:root` for light and override under `@media (prefers-color-scheme: dark)` for dark. Popups follow the system theme; nothing is hard-coded.

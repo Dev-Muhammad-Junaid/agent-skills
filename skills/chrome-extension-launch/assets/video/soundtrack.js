@@ -1,23 +1,17 @@
-// SKILL NOTE: synthesised pad + pulse + SFX. Update the cue arrays (clicks, whooshes, pops) to match your timeline.
-// A small synthesiser for the promo soundtrack: a warm pad, a soft pulse, and sound effects placed
-// on the exact moments of promo.html's timeline (clicks use the extension's own hide blip).
-const fs = require('fs');
+// SKILL NOTE: synthesised pad + pulse + SFX. promo.html publishes its beats as window.CUES and render-video.js passes
+// them in, so the audio follows the timeline without a second copy of the numbers. Every cue list is optional:
+//   clicks [s] (clickTone 'down' = hide blip, 'up' = switch/show), pause, enter, keys, types, pops, ticks, access, whooshes.
+// A small synthesiser for the promo soundtrack: a warm pad, a soft pulse, and sound effects on the exact beats.
+const fs = require("fs");
 const RATE = 44100;
 
-// Beats that match promo.html
-const HIDE_CLICKS = [7.9, 9.2, 10.4, 14.6, 16.05, 17.5, 18.95];
-const PAUSE_CLICK = 22.5;
-const WHOOSHES = [5.5, 13.1, 19.35, 23.3, 26.05];
-const POPS = [1.2, 2.45, 26.3];
-const CHIP_TICKS = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => 3.55 + i * 0.12);
-
-function writeSoundtrack(file, duration) {
+function writeSoundtrack(file, duration, cues) {
   const n = Math.ceil(duration * RATE);
   const L = new Float32Array(n), R = new Float32Array(n);
   const add = (i, l, r = l) => { if (i >= 0 && i < n) { L[i] += l; R[i] += r; } };
 
-  // Pad: four chords, two slightly detuned voices each, slow swell.
-  const chords = [[261.63, 329.63, 392.0, 493.88], [220.0, 261.63, 329.63, 392.0], [174.61, 220.0, 261.63, 329.63], [196.0, 246.94, 293.66, 392.0]];
+  // Pad: four chords, two slightly detuned voices each, slow swell. Cooler voicing than Distract's (A minor → F → C → G).
+  const chords = [[220.0, 261.63, 329.63, 440.0], [174.61, 220.0, 261.63, 349.23], [196.0, 261.63, 329.63, 392.0], [196.0, 246.94, 293.66, 392.0]];
   const bar = 4;
   let lp = 0, lp2 = 0;
   for (let i = 0; i < n; i++) {
@@ -27,10 +21,9 @@ function writeSoundtrack(file, duration) {
     const env = Math.min(1, within * 3) * (within > 0.85 ? (1 - within) / 0.15 * 0.6 + 0.4 : 1);
     let s = 0;
     for (const f of chords[ci]) s += Math.sin(2 * Math.PI * f * t) + Math.sin(2 * Math.PI * f * 1.004 * t) * 0.7;
-    // gentle lowpass for warmth
     lp += 0.06 * (s - lp); lp2 += 0.06 * (lp - lp2);
     const fade = Math.min(1, t / 2) * Math.min(1, (duration - t) / 2.5);
-    const v = lp2 * 0.018 * env * fade;
+    const v = lp2 * 0.026 * env * fade;
     add(i, v * (1 + 0.15 * Math.sin(t * 0.7)), v * (1 - 0.15 * Math.sin(t * 0.7)));
   }
 
@@ -40,7 +33,7 @@ function writeSoundtrack(file, duration) {
     for (let k = 0; k < RATE * 0.22; k++) {
       const t = k / RATE;
       const f = 50 + 70 * Math.exp(-t * 30);
-      add(s0 + k, Math.sin(2 * Math.PI * f * t) * Math.exp(-t * 16) * 0.16);
+      add(s0 + k, Math.sin(2 * Math.PI * f * t) * Math.exp(-t * 16) * 0.2);
     }
     const h0 = Math.floor((beat + 0.25) * RATE);
     let prev = 0;
@@ -50,25 +43,42 @@ function writeSoundtrack(file, duration) {
     }
   }
 
-  // The extension's blip: falling note for hide, rising for show.
-  const blip = (at, from, to, gain = 0.22) => {
+  // A sine blip gliding from one note to another (rising = switch / show).
+  const blip = (at, from, to, gain = 0.22, len = 0.16) => {
     const s0 = Math.floor(at * RATE);
     let ph = 0;
-    for (let k = 0; k < RATE * 0.16; k++) {
+    for (let k = 0; k < RATE * len; k++) {
       const t = k / RATE;
       const f = from * Math.pow(to / from, Math.min(1, t / 0.09));
       ph += 2 * Math.PI * f / RATE;
-      const e = Math.min(1, t / 0.012) * Math.exp(-t * 22);
-      add(s0 + k, Math.sin(ph) * e * gain);
+      add(s0 + k, Math.sin(ph) * Math.min(1, t / 0.012) * Math.exp(-t * 22) * gain);
     }
   };
-  HIDE_CLICKS.forEach((at) => blip(at, 740, 460));
-  blip(PAUSE_CLICK, 520, 330, 0.2);
-  POPS.forEach((at) => blip(at, 520, 820, 0.18));
-  CHIP_TICKS.forEach((at, i) => blip(at, 900 + i * 60, 1100 + i * 60, 0.06));
+  // A key: a short, bright filtered click.
+  const key = (at, gain = 0.12) => {
+    const s0 = Math.floor(at * RATE);
+    let a = 0, prev = 0;
+    for (let k = 0; k < RATE * 0.03; k++) {
+      const w = Math.random() * 2 - 1;
+      a += 0.5 * (w - a);
+      const hp = a - prev; prev = a;
+      add(s0 + k, hp * Math.exp(-(k / RATE) * 160) * gain);
+    }
+    blip(at, 1800, 1500, gain * 0.25, 0.04);
+  };
+
+  const C = { clicks: [], keys: [], types: [], pops: [], ticks: [], access: [], whooshes: [], ...cues };
+  C.clicks.forEach((at) => (C.clickTone === 'down' ? blip(at, 740, 460) : blip(at, 520, 820)));
+  if (C.pause != null) blip(C.pause, 520, 330, 0.2);
+  if (C.enter != null) { blip(C.enter, 520, 880, 0.24); key(C.enter - 0.02, 0.5); }
+  C.keys.forEach((at) => key(at, 0.5));
+  C.types.forEach((at) => key(at, 0.35));
+  C.pops.forEach((at) => blip(at, 520, 820, 0.18));
+  C.ticks.forEach((at, i) => blip(at, 900 + i * 60, 1100 + i * 60, 0.06));
+  C.access.forEach((at, i) => blip(at, 1300 + i * 40, 1400 + i * 40, 0.045, 0.08));
 
   // Whoosh: filtered noise swelling and sweeping, panned left to right.
-  WHOOSHES.forEach((at) => {
+  C.whooshes.forEach((at) => {
     const s0 = Math.floor((at - 0.15) * RATE), len = RATE * 0.75;
     let a = 0, b = 0;
     for (let k = 0; k < len; k++) {
@@ -80,14 +90,14 @@ function writeSoundtrack(file, duration) {
     }
   });
 
-  // Normalise to -1 dBFS and write 16-bit stereo WAV.
+  // Normalise to about -2 dBFS (AAC overshoots a little) and write 16-bit stereo WAV.
   let peak = 0;
   for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i]));
-  const g = peak ? 0.89 / peak : 1;
+  const g = peak ? 0.79 / peak : 1;
   const buf = Buffer.alloc(44 + n * 4);
-  buf.write('RIFF', 0); buf.writeUInt32LE(36 + n * 4, 4); buf.write('WAVE', 8); buf.write('fmt ', 12);
+  buf.write("RIFF", 0); buf.writeUInt32LE(36 + n * 4, 4); buf.write("WAVE", 8); buf.write("fmt ", 12);
   buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(2, 22); buf.writeUInt32LE(RATE, 24);
-  buf.writeUInt32LE(RATE * 4, 28); buf.writeUInt16LE(4, 32); buf.writeUInt16LE(16, 34); buf.write('data', 36); buf.writeUInt32LE(n * 4, 40);
+  buf.writeUInt32LE(RATE * 4, 28); buf.writeUInt16LE(4, 32); buf.writeUInt16LE(16, 34); buf.write("data", 36); buf.writeUInt32LE(n * 4, 40);
   for (let i = 0; i < n; i++) {
     buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, L[i] * g)) * 32767), 44 + i * 4);
     buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, R[i] * g)) * 32767), 46 + i * 4);
