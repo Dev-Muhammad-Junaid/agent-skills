@@ -1,4 +1,4 @@
-// SKILL NOTE: dependency-free PNG writer. Replace draw() with the new extension's icon geometry.
+// SKILL NOTE: dependency-free PNG writer. Replace raster()'s shapes with the new extension's icon geometry. `node icons.js mac out.png` writes the 1024 macOS app icon (Safari build).
 // Draws the Distract icon (blue tile, three pills, the middle one removed) as PNGs. No deps.
 const fs = require('fs'), zlib = require('zlib'), path = require('path');
 const BLUE = [36, 89, 232], LEDGE = [18, 58, 177], CREAM = [255, 253, 249];
@@ -6,7 +6,7 @@ function rrect(px, py, x, y, w, h, r) { // signed-ish coverage test for rounded 
   const cx = Math.max(x + r, Math.min(px, x + w - r)), cy = Math.max(y + r, Math.min(py, y + h - r));
   return (px - cx) ** 2 + (py - cy) ** 2 <= r * r && px >= x && px <= x + w && py >= y && py <= y + h;
 }
-function draw(S) {
+function raster(S) {
   const SS = 4, N = S * SS, px = new Float32Array(S * S * 4);
   const u = N / 128; // design on a 128 grid
   const shapes = (x, y) => {
@@ -34,7 +34,39 @@ function draw(S) {
     if (al) { px[k] = r / al; px[k + 1] = g / al; px[k + 2] = b / al; }
     px[k + 3] = (al / n) * 255;
   }
-  return png(S, px);
+  return px;
+}
+const draw = (S) => png(S, raster(S));
+
+// macOS app icon (Safari build): the tile on Apple's 1024 grid with a soft drop shadow.
+function macIcon() {
+  const C = 1024, T = 860, off = 82, out = new Float32Array(C * C * 4), tile = raster(T);
+  const alpha = new Float32Array(C * C);
+  for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) alpha[(y + off) * C + x + off] = tile[(y * T + x) * 4 + 3] / 255;
+  // shadow: alpha blurred (3 box passes) and nudged down
+  let sh = alpha;
+  for (let pass = 0; pass < 3; pass++) for (const horiz of [true, false]) {
+    const r = 14, next = new Float32Array(C * C);
+    for (let a = 0; a < C; a++) {
+      let acc = 0;
+      for (let b = -r; b < C + r; b++) {
+        const add = b + r < C ? (horiz ? sh[a * C + b + r] : sh[(b + r) * C + a]) : 0;
+        const sub = b - r - 1 >= 0 ? (horiz ? sh[a * C + b - r - 1] : sh[(b - r - 1) * C + a]) : 0;
+        acc += (b + r < C && b + r >= 0 ? add : 0) - (b - r - 1 >= 0 && b - r - 1 < C ? sub : 0);
+        if (b >= 0 && b < C) next[horiz ? a * C + b : b * C + a] = acc / (2 * r + 1);
+      }
+    }
+    sh = next;
+  }
+  for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) {
+    const k = (y * C + x) * 4, sy = y - 12, sa = sy >= 0 ? sh[sy * C + x] * 0.32 : 0;
+    const ty = y - off, tx = x - off, inT = tx >= 0 && ty >= 0 && tx < T && ty < T;
+    const ti = inT ? (ty * T + tx) * 4 : 0, ta = inT ? tile[ti + 3] / 255 : 0;
+    const a = ta + sa * (1 - ta);
+    if (a > 0) for (let c = 0; c < 3; c++) out[k + c] = ((inT ? tile[ti + c] : 0) * ta + 10 * sa * (1 - ta)) / a;
+    out[k + 3] = a * 255;
+  }
+  return png(C, out);
 }
 function png(S, px) {
   const raw = Buffer.alloc(S * (S * 4 + 1));
@@ -44,5 +76,6 @@ function png(S, px) {
   const ih = Buffer.alloc(13); ih.writeUInt32BE(S, 0); ih.writeUInt32BE(S, 4); ih[8] = 8; ih[9] = 6; ih[10] = 0; ih[11] = 0; ih[12] = 0;
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ih), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
-for (const s of [16, 32, 48, 128]) fs.writeFileSync(path.join(__dirname, '..', 'icons', s + '.png'), draw(s));
+if (process.argv[2] === 'mac') fs.writeFileSync(process.argv[3], macIcon());
+else for (const s of [16, 32, 48, 128]) fs.writeFileSync(path.join(__dirname, '..', 'icons', s + '.png'), draw(s));
 console.log('ok');

@@ -26,4 +26,4 @@ We may update this Privacy Policy from time to time. Any changes will be posted 
 
 ## 5. Contact
 
-If you have questions about this policy, email dev.muhammadjunaid@gmail.com or use the Chrome Web Store support page for Distract.
+If you have questions about this policy, email support@example.com or use the Chrome Web Store support page for Distract.

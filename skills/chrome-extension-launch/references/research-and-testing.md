@@ -21,7 +21,10 @@ Tools: Claude in Chrome (`tabs_context_mcp`, `navigate`, `javascript_tool`, `com
 - `__dxReport()`: per zone, per selector, the count and rect of the first match. Look for **too big** (a selector matching the whole column) as much as for 0.
 - `__dxHide([...zones])`: injects the real hide CSS. Screenshot the result, and check that nothing unrelated disappeared.
 - Page CSP doesn't block this (DevTools evaluation), but `eval` inside the page may be. The pack inlines everything.
-- Another extension may already hide parts (0-height matches before you hide anything). Note it and verify on another page.
+- Another extension may already hide parts (0-height matches before you hide anything). If it's the user's own copy (`#distract-style` exists), set `style.disabled = true` while measuring and restore it after.
+- Read **sizes**, not just counts. A tag on an element 10,000 px tall is a bug even when the count looks right.
+- **Planted wrong tags:** mark the page wrapper/main column with every container zone, run the tagger once, and confirm the tags moved to the right elements and nothing stayed behind. Also test with the anchor missing. This is what catches half-loaded-page tagging bugs.
+- Escape non-ASCII to `\uXXXX` before pasting a snippet through `javascript_tool`.
 
 ## Popup preview with a stubbed chrome API
 

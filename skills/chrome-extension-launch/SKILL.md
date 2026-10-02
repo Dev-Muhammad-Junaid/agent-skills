@@ -1,8 +1,8 @@
 ---
 name: chrome-extension-launch
 description: >
-  End-to-end playbook for building and launching a Chrome extension the way Muhammad Junaid ships
-  them: pick a theme from his design system, research the target sites in his signed-in Chrome,
+  End-to-end playbook for building and launching a Chrome extension: pick a theme from the user's
+  design system, research the target sites in the user's signed-in Chrome,
   build a Manifest V3 extension, verify it live and with automated tests, pass Chrome Web Store
   policy, set up a private GitHub repo with PRs and issues, generate every store asset (light + dark
   screenshots, promo tiles, icon), publish through the Developer Dashboard, and produce a
@@ -49,6 +49,14 @@ Rendering needs `playwright-core` (a devDependency, or `PW=<path>`), the cached 
 
 **UI built with React/Next (Switchit):** don't screenshot a bare fixture page. Render the real component in a frame route and reuse the same templates and video: [store-assets.md § frame pattern](references/store-assets.md).
 
+## Publisher profile (ask once, keep out of the skill)
+
+Personal and account details live in the agent's memory or a local note, never in this skill. If memory has a profile, use it; otherwise ask once and save it:
+- name or company shown as publisher, Chrome Web Store publisher email, support/contact email
+- GitHub account (for private repos and the policy gists)
+- design system link (e.g. a claude.ai Design System artifact)
+- website for marketing links
+
 ## The user's standing requirements
 
 Apply these without being asked. Confirm only the items marked **ask**.
@@ -60,10 +68,10 @@ Apply these without being asked. Confirm only the items marked **ask**.
 - **Delight, kept subtle:** a soft synthesised sound on key toggles, small physical motion, hover previews. Official platform logos (Simple Icons, CC0) wherever a platform is named in the UI.
 - **Both themes everywhere:** popup, store screenshots, promo tiles.
 - **Verify every step.** Research real structure in the user's signed-in Chrome, prove selectors on the live pages, run e2e tests on the packaged extension, and look at every rendered asset before handing it over. Report failures plainly.
-- **Accounts:**
-  - Chrome Web Store publisher: `dev.muhammadjunaid@gmail.com`. The dashboard URL carries an account index (`/u/<n>/`) that varies, so get it from the user.
-  - GitHub: `Dev-Muhammad-Junaid`. New extension repos are **private**.
-  - Privacy policy and support pages are **public GitHub gists**, following the Switchit and Distract format.
+- **Accounts:** come from the **publisher profile** (below), never hard-coded here.
+  - Chrome Web Store publisher email. The dashboard URL carries an account index (`/u/<n>/`) that varies, so get it from the user.
+  - GitHub account. New extension repos are **private**.
+  - Privacy policy and support pages are **public GitHub gists** on that account (product repos are private and would 404 for reviewers).
 - **Files the user can't see:** when the session runs in a scratch workspace, the user can't browse it. Send deliverables with the file-sending tool (zip, images, videos), and offer to move the work into a real folder (the user likes `~/Projects/<name>`).
 - **Never:** type passwords or passkeys, pay the $5 developer fee, click **Submit for review**, merge or publish without an explicit yes in chat. Stop and hand over at each of these.
 
@@ -105,7 +113,10 @@ Copy `assets/templates/` + `render-store.js`, and theme the templates with the d
 ### 8 · Promote
 Promo video (30 s, deterministic timeline, frame-exact render, synthesised soundtrack), YouTube title, description, tags and thumbnail, then social cuts (vertical 1080×1920 and supersampled landscape) with platform captions. See [promo-video-and-social.md](references/promo-video-and-social.md).
 
-### 9 · Hand-off report
+### 9 · Safari (optional)
+To ship the same extension to Safari on the Mac App Store, switch to the `safari-extension-launch` skill: compatibility fixes, Xcode wrapper, WebKit testing, App Review pre-check and App Store Connect.
+
+### 10 · Hand-off report
 Lead with what was verified and what wasn't. Then list: the files sent, the dashboard steps that remain for the user (sign-in, fee, video URL, submit), the PR link, and the open issues.
 
 ## Pitfalls already paid for (don't repeat them)
@@ -131,4 +142,11 @@ Lead with what was verified and what wasn't. Then list: the files sent, the dash
 | Video "copies the other extension", features missing | Storyboard and motion reused instead of read from the product | List every UI state from the code first; new motion and sound per product (promo-video-and-social.md) |
 | Reels look "zoomed out" | Landscape layout scaled into 9:16 | Separate vertical layout, UI at ~90 % width |
 | Rolling caption never moves | `transform` on an inline `<span>` | `display: block` on the moving element |
+| Hiding one section hid a much bigger one (X Composer → whole timeline) | Container tag placed while the page was half-loaded, never removed | `T.only()` + climb that refuses ancestors containing the sibling section; live check with planted wrong tags |
+| Nothing hidden on some loads in WebKit/Safari | `document_start` before `<html>` exists | `whenRoot()` mount |
+| Live sizes read 0 px in the user's Chrome | Their own installed copy already hides those sections | Disable `#distract-style` while measuring, restore after |
 | Split light/dark shot looks broken in one set | The halves inherit the page's theme; scrim sits over the dark half | Each half gets its own tokens and scrim; one diagonal for page and UI |
+
+## Credits
+
+Contributed by **Muhammad Junaid** · [widgetsflow.com](https://widgetsflow.com) · [GitHub @Dev-Muhammad-Junaid](https://github.com/Dev-Muhammad-Junaid)

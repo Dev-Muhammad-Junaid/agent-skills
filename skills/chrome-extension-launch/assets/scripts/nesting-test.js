@@ -1,10 +1,13 @@
-// SKILL NOTE: checks every nested clickable block stays reachable while its parent is hovered. Reuse for any wireframe/overlay UI.
+// SKILL NOTE: checks every nested clickable block stays reachable while its parent is hovered. Reuse for any wireframe/overlay UI. BROWSER=webkit runs it in Safari's engine.
 // Every zone block in every view must stay clickable, even while the mouse sits on a bigger block around it.
 const path = require('path');
-const { chromium } = require(process.env.PW || 'playwright-core');
+const pw = require(process.env.PW || 'playwright-core');
+// BROWSER=webkit runs it in Safari's engine; the default is Chromium (CHROME = binary).
 const DX = (() => { const ctx = { self: {} }; require('vm').runInNewContext(require('fs').readFileSync(path.join(__dirname, '../src/zones.js'), 'utf8'), ctx); return ctx.self.DX; })();
 (async () => {
-  const b = await chromium.launch({ executablePath: process.env.CHROME, headless: true });
+  const b = process.env.BROWSER === 'webkit'
+    ? await pw.webkit.launch({ headless: true })
+    : await pw.chromium.launch({ executablePath: process.env.CHROME, headless: true });
   const page = await b.newPage({ viewport: { width: 520, height: 520 } });
   let fails = 0, checks = 0;
   for (const p of Object.values(DX.platforms)) for (const v of p.views) {

@@ -1,4 +1,4 @@
-// SKILL NOTE: renders every template in light + dark at 2x, downscales with sips to exact store sizes (no alpha), writes the padded 128px store icon.
+// SKILL NOTE: renders every template in light + dark at 2x (TARGET=safari: the Mac App Store 2880×1800 set at 3x), downscales with sips to exact store sizes (no alpha), writes the padded 128px store icon.
 // ONLY=screenshot-1,marquee re-renders a subset (then `git checkout --` the rest: re-renders differ by anti-aliasing noise).
 // React/Next UIs: use assets/react-frame/serve.js instead of the static server below (see references/store-assets.md).
 // Renders the Chrome Web Store artwork into store/assets/.
@@ -20,10 +20,18 @@ const ART = [
 const JOBS = ['light', 'dark'].flatMap((theme) => ART.map((a) => ({ ...a, theme, file: `${theme}/${a.file}` })));
 // YouTube thumbnail for the promo video (light only).
 JOBS.push({ file: 'youtube-thumbnail-1280x720.png', url: 'store/templates/thumbnail.html', w: 1280, h: 720, theme: 'light' });
+// Mac App Store (Safari build, see the safari-extension-launch skill): the five screenshots at 2880×1800,
+// both themes. TARGET=safari renders only these, at 3x, into store/assets/safari/{light,dark}/.
+const SAFARI = ['light', 'dark'].flatMap((theme) => [1, 2, 3, 4, 5].map((n) => ({
+  file: `safari/${theme}/screenshot-${n}-2880x1800.png`, url: `store/templates/screenshot.html?n=${n}`,
+  w: 1280, h: 800, out: [2880, 1800], theme,
+})));
+const IS_SAFARI = process.env.TARGET === 'safari';
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
-const RUN = ONLY ? JOBS.filter((j) => ONLY.some((o) => j.file.includes(o))) : JOBS;
+const BASE_JOBS = IS_SAFARI ? SAFARI : JOBS;
+const RUN = ONLY ? BASE_JOBS.filter((j) => ONLY.some((o) => j.file.includes(o))) : BASE_JOBS;
 
-const SCALE = 2;
+const SCALE = IS_SAFARI ? 3 : 2;
 
 // Chromium: $CHROME, else the newest cached Playwright "Chrome for Testing" (no env needed on the user's Mac).
 function chromePath() {
@@ -51,7 +59,7 @@ function downscale(bigFile, outFile, w, h) {
     fs.createReadStream(file).pipe(res);
   }).listen(0);
   const base = `http://localhost:${server.address().port}/`;
-  for (const t of ['light', 'dark']) fs.mkdirSync(path.join(OUT, t), { recursive: true });
+  for (const t of IS_SAFARI ? ['safari/light', 'safari/dark'] : ['light', 'dark']) fs.mkdirSync(path.join(OUT, t), { recursive: true });
 
   const browser = await chromium.launch({ executablePath: chromePath(), headless: true });
   for (const j of RUN) {
@@ -61,13 +69,14 @@ function downscale(bigFile, outFile, w, h) {
     await page.waitForFunction(() => document.documentElement.dataset.ready === '1');
     await page.waitForTimeout(250);
     // The 2x master is only a stepping stone; it lives outside the repo so it can't be uploaded by mistake.
-    const big = path.join(os.tmpdir(), 'distract-' + j.file.replace('/', '-').replace('.png', '@2x.png'));
+    const big = path.join(os.tmpdir(), 'store-' + j.file.replace(/\//g, '-').replace('.png', `@${SCALE}x.png`));
     await page.screenshot({ path: big });
-    downscale(big, path.join(OUT, j.file), j.w, j.h);
+    const [w, h] = j.out || [j.w, j.h];
+    downscale(big, path.join(OUT, j.file), w, h);
     console.log('wrote', j.file);
     await page.close();
   }
-  if (ONLY) { await browser.close(); server.close(); return; }
+  if (ONLY || IS_SAFARI) { await browser.close(); server.close(); return; }
   // Store icon: 96px artwork centred in 128px with transparent padding.
   const icon = await browser.newPage({ viewport: { width: 128, height: 128 } });
   await icon.setContent(`<body style="margin:0;background:transparent"><img src="${base}icons/128.png" style="display:block;width:96px;height:96px;margin:16px"></body>`);

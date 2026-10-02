@@ -1,6 +1,6 @@
 # GitHub workflow
 
-Account: `Dev-Muhammad-Junaid` (the `gh` CLI is authenticated). Commit messages end with the session's attribution line.
+Account: the user's GitHub account from the publisher profile (the `gh` CLI is authenticated). Commit messages end with the session's attribution line.
 
 ## New extension repo
 
@@ -8,7 +8,7 @@ Account: `Dev-Muhammad-Junaid` (the `gh` CLI is authenticated). Commit messages 
 git init -b main
 printf '.DS_Store\nnode_modules/\n*.zip\ndist/\nstore/video/out/*.wav\n' > .gitignore
 git add -A && git commit -m "<Name> <version>: <one-line purpose>"
-gh repo create Dev-Muhammad-Junaid/<name> --private --description "<one-line promise>" --source . --remote origin --push
+gh repo create <github-user>/<name> --private --description "<one-line promise>" --source . --remote origin --push
 git tag v<version> && git push origin v<version>
 ```
 
@@ -33,4 +33,4 @@ Open an issue for every limitation you tell the user about (for example "Hide sp
 
 ## Publishing a skill to agent-skills
 
-Repo `Dev-Muhammad-Junaid/agent-skills`: `skills/<name>/SKILL.md` (+ `references/`, `assets/`), a `skills/<name>.zip` of the folder, and a row in the README's "Available Skills" table with the install command `npx skills add Dev-Muhammad-Junaid/agent-skills@<name> -g`.
+The user's skills repo (e.g. `<github-user>/agent-skills`): `skills/<name>/SKILL.md` (+ `references/`, `assets/`), a `skills/<name>.zip` of the folder, and a row in the README's "Available Skills" table with the install command `npx skills add <github-user>/agent-skills@<name> -g`.

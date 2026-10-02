@@ -1,0 +1,48 @@
+/* {{Name}} for Safari — the app window, on the Canvas design system tokens. */
+:root {
+    --canvas: #fffdf9; --surface: #ffffff; --ink: #242422; --muted: #63635f; --border: #eae7df;
+    --accent: #2459e8; --primary: #2459e8; --on-primary: #fffdf9; --ledge-primary: 0 4px 0 0 #123ab1;
+    --secondary: #f0ede7; --ledge-secondary: 0 4px 0 0 #d9d5cd;
+    --font-display: "Arial Rounded MT Bold", ui-rounded, -apple-system, sans-serif;
+    --font-sans: -apple-system, BlinkMacSystemFont, sans-serif;
+    color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --canvas: #191a1d; --surface: #25262b; --ink: #f2f0eb; --muted: #b8b8b2; --border: #34353a;
+        --accent: #90b0ff; --ledge-primary: 0 4px 0 0 #0f2f8f;
+        --secondary: #35363b; --ledge-secondary: 0 4px 0 0 #18191c;
+        color-scheme: dark;
+    }
+}
+
+* { -webkit-user-select: none; -webkit-user-drag: none; cursor: default; box-sizing: border-box; }
+html { height: 100%; background: var(--canvas); }
+body {
+    margin: 0; height: 100%; padding: 40px 44px 36px;
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+    background: var(--canvas); color: var(--ink); font: 15px/1.55 var(--font-sans);
+}
+.icon { margin: 0 0 20px -6px; }
+h1 { font: 800 30px/32px var(--font-display); letter-spacing: -1px; margin: 0 0 12px; }
+h1 .accent { display: block; color: var(--accent); }
+p { margin: 0 0 24px; color: var(--muted); }
+ol { margin: 0 0 24px; padding: 0; list-style: none; counter-reset: step; color: var(--muted); }
+ol li { counter-increment: step; position: relative; padding: 4px 0 4px 34px; }
+ol li::before {
+    content: counter(step); position: absolute; left: 0; top: 5px; width: 22px; height: 22px; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--secondary); color: var(--ink); font: 700 12px/1 var(--font-sans);
+}
+ol b { color: var(--ink); font-weight: 600; }
+
+.btn {
+    border: 0; border-radius: 999px; padding: 12px 22px 13px; font: 600 15px/1 var(--font-sans);
+    background: var(--primary); color: var(--on-primary); box-shadow: var(--ledge-primary);
+    transition: transform .08s, box-shadow .08s;
+}
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 0 #123ab1; }
+body.state-on .btn { background: var(--secondary); color: var(--ink); box-shadow: var(--ledge-secondary); }
+
+body.state-on .state-off, body.state-off .state-on { display: none; }
+body:not(.state-on):not(.state-off) .state-on { display: none; }
