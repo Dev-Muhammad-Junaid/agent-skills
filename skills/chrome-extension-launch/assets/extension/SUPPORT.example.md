@@ -22,7 +22,7 @@ These sites change their layout often. If a block no longer hides its section, o
 
 1. Reload the page.
 2. Try pausing and resuming Distract on that site.
-3. If it still happens, email the site, the page (for example "YouTube home"), and the block name to **dev.muhammadjunaid@gmail.com**.
+3. If it still happens, email the site, the page (for example "YouTube home"), and the block name to **support@example.com**.
 
 Known limits:
 - Sponsored posts inside the Facebook feed can't be detected reliably yet. The sponsored panel on the right is hidden.
@@ -30,8 +30,8 @@ Known limits:
 
 ## Privacy
 
-Distract collects nothing, has no account, and makes no network requests. See the privacy policy: https://gist.github.com/Dev-Muhammad-Junaid/20c3d1308c6dc2d4d1eb9c57411dbd52
+Distract collects nothing, has no account, and makes no network requests. See the privacy policy: https://gist.github.com/<github-user>/<privacy-gist-id>
 
 ## Contact
 
-dev.muhammadjunaid@gmail.com
+support@example.com

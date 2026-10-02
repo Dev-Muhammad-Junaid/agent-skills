@@ -8,7 +8,7 @@ Version: bump `manifest.version` above the live store version for every upload. 
 
 ## Privacy policy and support pages (public gists)
 
-The user's pattern (Switchit, Distract): each page is a **public gist** on `Dev-Muhammad-Junaid`, because product repos are private and would 404 for reviewers.
+The pattern (Switchit, Distract): each page is a **public gist** on the user's GitHub account (from the publisher profile), because product repos are private and would 404 for reviewers.
 
 ```bash
 gh gist create PRIVACY.md --public -d "<Name> Privacy Policy"
@@ -23,7 +23,7 @@ gh gist edit <id> -f PRIVACY.md PRIVACY.md    # to update later
 
 ## Dashboard walkthrough
 
-Dashboard URL shape: `https://chrome.google.com/u/<n>/webstore/devconsole/<publisher-id>/<item-id>/edit/<tab>`. Get `<n>` and the IDs from the user. The account is `dev.muhammadjunaid@gmail.com`.
+Dashboard URL shape: `https://chrome.google.com/u/<n>/webstore/devconsole/<publisher-id>/<item-id>/edit/<tab>`. Get `<n>` and the IDs from the user. The publisher account comes from the publisher profile.
 
 Access:
 - Claude in Chrome **cannot** script Web Store pages. Use the built-in browser pane: open the dashboard URL, pick the account in the chooser, then hand over to the user for the passkey or password.
