@@ -99,6 +99,9 @@ Record everything in `store/safari/test-results-<version>.md`. Fix, bump the bui
 ### 6 · App Store Connect
 [app-store-connect.md](references/app-store-connect.md): the user signs in (Claude in Chrome on `appstoreconnect.apple.com`). Create the record, fill the listing, screenshots in order, app information, age rating, content rights, pricing and availability, privacy label, review notes; archive, upload, attach the build. Stop at **Add for Review** with a summary.
 
+### 6b · Every update
+New version in App Store Connect → attach the new build → What's New → **rewrite the review notes for this version's changes** (2.3.1(a), 2.5.19) → re-run the pre-check against the current guidelines (diff them against the last saved copy). Never let an update go out with the previous version's notes.
+
 ### 7 · After submission
 - Keep the prepared replies ready. If App Review asks, answer from `review-check.md` or ship a build with a new build number.
 - At release, add the `apps.apple.com/app/id<AppleID>` link to the privacy and support pages and README.
@@ -121,6 +124,7 @@ Record everything in `store/safari/test-results-<version>.md`. Fix, bump the bui
 | Selects/inputs ignore `form_input` in App Store Connect | React-controlled fields | Native value setter + `input`/`change` events via `javascript_tool` |
 | Privacy/support URLs described only Chrome | Pages written for the first store | Update gists in place (same URLs), both browsers |
 | Buggy build already attached when bugs were found | Uploaded before testing finished | Detach (version page → Build → Delete), upload build N+1, attach once processed (~10–30 min) |
+| Update sent to review with the last version's notes | Version created by copying metadata; notes not touched | Rewrite notes per version (2.3.1(a): generic descriptions are rejected) |
 | Asked to "test it yourself" in Safari | Safari is read-only for Claude | Explain once; automate in WebKit/Chrome, guide the Safari pass |
 
 ## Credits

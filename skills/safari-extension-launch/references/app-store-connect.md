@@ -29,7 +29,7 @@ Apps → Add Apps (first app) or ＋ → New App:
 - Screenshots: see store-assets.md (one at a time, in order; dismiss the "used for all Mac sizes" OK dialog).
 - Promotional text (170), description (4,000, says it's a Safari extension, ends with the "not affiliated" line), keywords (100, comma-separated, no spaces, no third-party marks, no words already in the name), support URL (gist), marketing URL (profile website), version, copyright `<year> <copyright holder>`.
 - Build: **Add Build** lists processed uploads. To swap, use **Delete** on the attached row (this only detaches it), then Add Build → pick → Done → Save.
-- Sign-in required: **off** (unless truly needed). Contact: name, email, **phone with +country code** (required; ask the user to type it). Notes: exact reviewer steps (open the app, Open Safari Settings, tick it, open a logged-out site, allow access, click two blocks, what to expect).
+- Sign-in required: **off** (unless truly needed). Contact: name, email, **phone with +country code** (required; ask the user to type it). Notes: exact reviewer steps (open the app, Open Safari Settings, tick it, open a logged-out site, allow access, click two blocks, what to expect). **On every update, rewrite the notes** with a "What's new in X.Y and how to test it" section: each new feature or change, where it appears, a concrete test, and a closing line on permissions, data and code (none new, nothing downloaded or obfuscated). Guideline 2.3.1(a) rejects generic notes, and 2.5.19 treats undocumented behaviour as hidden features. The notes stay editable while the version is "Waiting for Review".
 - Release: **Manually release this version**.
 
 ## 3 · App Information
